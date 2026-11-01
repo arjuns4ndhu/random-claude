@@ -1,0 +1,609 @@
+<title>Macbeth Recall</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Alegreya+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single reading column, like a prompt book. Candle strip = mastery of all 24 lines. */
+:root{
+  --bg:#E8ECE5; --surface:#F6F7F2; --ink:#18201C; --muted:#56625B; --line:#C8D0C5;
+  --accent:#875703; --accent-ink:#FFF8E6; --accent-soft:#EADDBF;
+  --good:#2B6A42; --good-soft:#D2E7D8; --bad:#A0252C; --bad-soft:#F3D6D6; --warn:#7A5A10; --warn-soft:#F1E6C6;
+  --f-display:"IM Fell English", "Iowan Old Style", Georgia, serif;
+  --f-body:"Alegreya Sans", "Gill Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#111714; --surface:#19211D; --ink:#E3E7DF; --muted:#98A49C; --line:#2C3731;
+  --accent:#DCAB4C; --accent-ink:#1B1406; --accent-soft:#3A3020;
+  --good:#76C694; --good-soft:#1C3326; --bad:#EC7A80; --bad-soft:#3C1E22; --warn:#E3C06A; --warn-soft:#3A321C; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#111714; --surface:#19211D; --ink:#E3E7DF; --muted:#98A49C; --line:#2C3731;
+  --accent:#DCAB4C; --accent-ink:#1B1406; --accent-soft:#3A3020;
+  --good:#76C694; --good-soft:#1C3326; --bad:#EC7A80; --bad-soft:#3C1E22; --warn:#E3C06A; --warn-soft:#3A321C; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.5;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:20px 48px}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--f-display);font-weight:400;text-wrap:balance;margin:0}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.mono{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+.muted{color:var(--muted)}
+
+/* header */
+header{display:flex;flex-direction:column;gap:10px}
+.toprow{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+h1{font-size:clamp(40px,8vw,58px);line-height:1}
+h1 em{color:var(--accent)}
+.tag{font-size:16px;color:var(--muted);max-width:52ch}
+.stats{display:flex;gap:18px;font-variant-numeric:tabular-nums}
+.stat b{display:block;font-family:var(--f-display);font-size:28px;font-weight:400;line-height:1}
+.stat span{font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.candles{display:grid;grid-template-columns:repeat(24,1fr);gap:4px;align-items:end;height:44px;margin-top:4px}
+.candle{position:relative;height:100%;border:1px solid var(--line);border-radius:3px 3px 2px 2px;background:var(--surface);overflow:hidden}
+.candle i{position:absolute;left:0;right:0;bottom:0;background:var(--accent);transition:height .4s ease}
+.candle.due{border-color:var(--accent)}
+.candlekey{display:flex;justify-content:space-between;gap:8px}
+@media (max-width:560px){.candlekey span:nth-child(2){display:none}}
+
+/* home */
+.today{background:var(--ink);color:var(--bg);border-radius:var(--r);padding:22px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.today h2{font-size:30px}
+.today p{margin:4px 0 0;opacity:.8;max-width:44ch}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:10px 18px;font-weight:500}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.ghost{background:transparent}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.today .btn.primary{padding:13px 24px;font-size:18px}
+.modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:560px){.modes{grid-template-columns:1fr}}
+.mode{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;display:flex;flex-direction:column;gap:4px}
+.mode:hover{border-color:var(--accent)}
+.mode h3{font-size:24px}
+.mode p{margin:0;color:var(--muted);font-size:15px}
+.mode .mono{margin-top:4px}
+.why{border-top:1px solid var(--line);padding-top:14px;font-size:15px;color:var(--muted)}
+.why b{color:var(--ink)}
+
+/* play surfaces */
+.bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.back{background:none;border:none;padding:6px 0;color:var(--muted);font-family:var(--f-mono);font-size:13px;letter-spacing:.06em}
+.back:hover{color:var(--ink)}
+.progress{height:4px;background:var(--line);border-radius:4px;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:clamp(18px,4vw,30px);display:flex;flex-direction:column;gap:16px;min-width:0}
+.kind{font-family:var(--f-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.quote{font-family:var(--f-display);font-style:italic;font-size:clamp(24px,4.6vw,34px);line-height:1.25;margin:0;text-wrap:pretty}
+.quote u{text-decoration-thickness:2px;text-underline-offset:4px;text-decoration-color:var(--accent)}
+.quote.sm{font-size:21px}
+.who{font-family:var(--f-mono);font-size:13px;color:var(--muted);letter-spacing:.04em}
+.who b{color:var(--ink);font-weight:500}
+.cue{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0}
+.cue dt{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding-top:4px}
+.cue dd{margin:0}
+.lbl{font-family:var(--f-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+textarea,input[type=text],select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+textarea{min-height:84px;resize:vertical}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:5px 12px;font-size:15px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip.ok{background:var(--good-soft);border-color:var(--good);color:var(--ink)}
+.chip.miss{background:transparent;border:1px dashed var(--warn);color:var(--warn)}
+.chip.wrong{background:var(--bad-soft);border-color:var(--bad);color:var(--ink);text-decoration:line-through}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row.end{justify-content:flex-end}
+.answer{border-top:1px dashed var(--line);padding-top:16px;display:flex;flex-direction:column;gap:12px}
+.diff span{border-radius:3px;padding:0 1px}
+.diff .hit{color:var(--good)}
+.diff .gap{background:var(--bad-soft);color:var(--bad)}
+.score{font-family:var(--f-mono);font-size:13px;padding:3px 10px;border-radius:999px;display:inline-block}
+.score.good{background:var(--good-soft);color:var(--good)}
+.score.mid{background:var(--warn-soft);color:var(--warn)}
+.score.low{background:var(--bad-soft);color:var(--bad)}
+.kw .hit{background:var(--good-soft);color:var(--good);border-radius:3px;padding:0 3px}
+.grades{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.grade{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.grade b{font-weight:700}
+.grade small{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.grade.g1:hover,.grade.g1.sugg{border-color:var(--bad)}
+.grade.g2:hover,.grade.g2.sugg{border-color:var(--warn)}
+.grade.g3:hover,.grade.g3.sugg{border-color:var(--good)}
+.grade.sugg{box-shadow:0 0 0 2px var(--accent-soft)}
+
+/* gap fill */
+.gapq input{display:inline-block;width:auto;min-width:5ch;font-family:var(--f-display);font-style:italic;font-size:.9em;padding:2px 8px;border-radius:6px;border:none;border-bottom:2px solid var(--accent);background:var(--accent-soft);vertical-align:baseline;max-width:100%}
+.gapq input.ok{background:var(--good-soft);border-color:var(--good)}
+.gapq input.bad{background:var(--bad-soft);border-color:var(--bad)}
+.fix{font-family:var(--f-mono);font-size:13px;color:var(--bad)}
+
+/* option grids */
+.opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.opts.acts{grid-template-columns:repeat(5,1fr)}
+.opt{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:12px;text-align:left;font-weight:500;display:flex;gap:8px;align-items:baseline}
+.opts.acts .opt{justify-content:center;font-family:var(--f-display);font-size:22px;font-weight:400}
+.opt kbd{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.opt.ok{background:var(--good-soft);border-color:var(--good)}
+.opt.bad{background:var(--bad-soft);border-color:var(--bad)}
+.timer{font-family:var(--f-display);font-size:34px;font-variant-numeric:tabular-nums;line-height:1}
+.timer.low{color:var(--bad)}
+
+/* tiles (hunt, order, exam) */
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:560px){.tiles{grid-template-columns:1fr}}
+.tile{position:relative;text-align:left;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:12px 14px 12px 44px;font-family:var(--f-display);font-style:italic;font-size:18px;line-height:1.3;min-width:0}
+.tile .mark{position:absolute;left:12px;top:12px;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);font-family:var(--f-mono);font-style:normal;font-size:12px;display:grid;place-items:center;color:var(--muted)}
+.tile[aria-pressed="true"]{border-color:var(--ink)}
+.tile[aria-pressed="true"] .mark{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.tile.ok{background:var(--good-soft);border-color:var(--good)}
+.tile.miss{border:1px dashed var(--warn)}
+.tile.wrong{background:var(--bad-soft);border-color:var(--bad)}
+.tile .note{display:block;font-family:var(--f-mono);font-style:normal;font-size:12px;color:var(--muted);margin-top:6px}
+.tile[disabled]{cursor:default}
+.list{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.list li{border-left:2px solid var(--accent);padding-left:12px}
+.ctx{background:var(--accent-soft);border-radius:8px;padding:12px 14px}
+
+/* bank */
+.filters{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}
+@media (max-width:560px){.filters{grid-template-columns:1fr}}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.seg button{border:none;background:var(--surface);padding:8px 14px;font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.entry{display:grid;grid-template-columns:44px 1fr;gap:12px;border-top:1px solid var(--line);padding:16px 0}
+.num{font-family:var(--f-display);font-size:30px;color:var(--accent);line-height:1}
+.pips{display:flex;gap:3px;margin-top:6px}
+.pips i{width:7px;height:7px;border-radius:2px;background:var(--line)}
+.pips i.on{background:var(--accent)}
+.cover{display:block;width:100%;text-align:left;border:1px dashed var(--line);background:var(--bg);border-radius:6px;padding:8px 10px;color:var(--muted);font-family:var(--f-mono);font-size:12px}
+.notes{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:8px 0 0;font-size:15px}
+.notes dt{font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.notes dd{margin:0}
+.danger{color:var(--bad)}
+.big{font-family:var(--f-display);font-size:56px;line-height:1}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">GCSE English Literature · Macbeth</div>
+    <div class="toprow">
+      <div>
+        <h1>Macbeth <em>Recall</em></h1>
+        <p class="tag" style="margin:6px 0 0">24 quotations. Say them before you see them.</p>
+      </div>
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="candles" id="candles" role="img"></div>
+    <div class="candlekey mono"><span>#1 Act 1</span><span>Each candle is one quotation. Taller = more secure.</span><span>#24 Act 5</span></div>
+  </header>
+  <main id="app" aria-live="polite"></main>
+</div>
+
+<script>
+/* ---------- DATA (from Macbeth Quote Bank; [[ ]] = underlined key word) ---------- */
+const Q=[
+{n:1,q:"[[Fair]] is [[foul]], and foul is fair",ref:"A1S1",who:"Witches",g:"The Witches",method:"Chiasmus + chant",meaning:"Good and evil are flipped, so nothing is what it seems",themes:["supernatural","appearance vs reality"]},
+{n:2,q:"For [[brave]] Macbeth—well he deserves that name",ref:"A1S2",who:"Captain",g:"Captain",method:"Adjective + praise from others",meaning:"He starts as a hero, so his fall is more tragic",themes:["tragic hero"]},
+{n:3,q:"All hail, Macbeth, that [[shalt]] be king hereafter!",ref:"A1S3",who:"Third Witch",g:"The Witches",method:"Prophecy + modal verb",meaning:"Sounds like fate, but they never tell him to murder",themes:["fate vs free will","ambition","kingship and tyranny"]},
+{n:4,q:"The [[instruments of darkness]] tell us truths… to betray's / In deepest consequence",ref:"A1S3",who:"Banquo",g:"Banquo",method:"Metaphor + Banquo as a foil",meaning:"Evil wins trust with small truths, then destroys; Macbeth ignores this",themes:["supernatural","appearance vs reality","fate vs free will"]},
+{n:5,q:"It is too full o' th' [[milk]] of human kindness",ref:"A1S5",who:"Lady Macbeth",g:"Lady Macbeth",method:"Metaphor (milk = feminine)",meaning:"She sees kindness as weakness; ironic, as he becomes a \"butcher\" (#24)",themes:["masculinity and gender"]},
+{n:6,q:"[[unsex]] me here",ref:"A1S5",who:"Lady Macbeth",g:"Lady Macbeth",method:"Imperative, calling on spirits",meaning:"Rejects womanhood to be cruel; witch-like to a Jacobean audience",themes:["masculinity and gender","supernatural","ambition"]},
+{n:7,q:"look like th' innocent flower, / But be the [[serpent]] under't",ref:"A1S5",who:"Lady Macbeth",g:"Lady Macbeth",method:"Contrasting imagery + biblical allusion (serpent in Eden)",meaning:"Hide evil behind innocence; links her to Satan",themes:["appearance vs reality","ambition"]},
+{n:8,q:"I have no spur / To prick the sides of my intent, but only / [[Vaulting]] ambition",ref:"A1S7",who:"Macbeth",g:"Macbeth",method:"Extended metaphor of horse-riding",meaning:"Ambition is his only motive; vaulting = jumping too high, then falling",themes:["ambition","fate vs free will"]},
+{n:9,q:"I have given suck… [[dash'd]] the brains out",ref:"A1S7",who:"Lady Macbeth",g:"Lady Macbeth",method:"Violent imagery vs motherhood",meaning:"She'd kill her own baby; rejects her role as a woman",themes:["masculinity and gender","violence","ambition"],alt:{"dash'd":["dashed"]}},
+{n:10,q:"Is this a [[dagger]] which I see before me",ref:"A2S1",who:"Macbeth",g:"Macbeth",method:"Rhetorical question in a soliloquy",meaning:"Guilt breaks his mind before the murder; is it real or imagined?",themes:["guilt","supernatural","appearance vs reality"]},
+{n:11,q:"Macbeth does murder [[sleep]]",ref:"A2S2",who:"Macbeth",g:"Macbeth",method:"Metaphor + third person",meaning:"Sleep = innocence; foreshadows the sleepwalking",themes:["guilt","kingship and tyranny"]},
+{n:12,q:"A [[little]] water clears us of this deed",ref:"A2S2",who:"Lady Macbeth",g:"Lady Macbeth",method:"Understatement + dramatic irony",meaning:"She thinks guilt washes away easily; pairs with #20",themes:["guilt","appearance vs reality"]},
+{n:13,q:"O, full of [[scorpions]] is my mind, dear wife!",ref:"A3S2",who:"Macbeth",g:"Macbeth",method:"Animal imagery",meaning:"Constant, poisonous paranoia; pushes him to kill again",themes:["guilt","kingship and tyranny"]},
+{n:14,q:"I am in blood / Stepp'd in so far that, should I wade no more, / Returning were as [[tedious]] as go o'er",ref:"A3S4",who:"Macbeth",g:"Macbeth",method:"Extended metaphor of a river of blood",meaning:"Past the point of no return; murder is now routine",themes:["violence","kingship and tyranny"]},
+{n:15,q:"[[security]] / Is mortals' chiefest enemy",ref:"A3S5",who:"Hecate",g:"Hecate",method:"Personification + superlative",meaning:"Security = overconfidence; foreshadows Act 5",themes:["supernatural","tragic hero"]},
+{n:16,q:"Something [[wicked]] this way comes",ref:"A4S1",who:"Second Witch",g:"The Witches",method:"Rhyming couplet + Witches judging Macbeth",meaning:"Even the Witches call him wicked; shows how far he has fallen",themes:["supernatural","tragic hero"]},
+{n:17,q:"none of [[woman born]] / Shall harm Macbeth",ref:"A4S1",who:"Apparition",g:"An Apparition",method:"Equivocation + dramatic irony",meaning:"Makes him feel untouchable, but Macduff was born by caesarean",themes:["fate vs free will","supernatural","appearance vs reality"]},
+{n:18,q:"[[Bleed]], bleed, poor country!",ref:"A4S3",who:"Macduff",g:"Macduff",method:"Repetition + personification",meaning:"Scotland is a wounded body under a tyrant",themes:["kingship and tyranny","violence"]},
+{n:19,q:"But I must also [[feel]] it as a man",ref:"A4S3",who:"Macduff",g:"Macduff",method:"Contrast + Macduff as a foil",meaning:"Real men grieve; shows up Macbeth's cold masculinity",themes:["masculinity and gender","violence"]},
+{n:20,q:"Out, damned [[spot]]! out, I say!",ref:"A5S1",who:"Lady Macbeth",g:"Lady Macbeth",method:"Exclamations + imperatives, in prose",meaning:"She can't command a stain; prose shows her mind has broken",themes:["guilt"]},
+{n:21,q:"She should have died [[hereafter]]",ref:"A5S5",who:"Macbeth",g:"Macbeth",method:"Short, flat statement + ambiguity",meaning:"Cold reaction to his wife's death; ambition has killed his feelings",themes:["tragic hero","relationships"]},
+{n:22,q:"Life's but a walking [[shadow]]",ref:"A5S5",who:"Macbeth",g:"Macbeth",method:"Metaphor",meaning:"Shadow = empty; ambition left him with nothing",themes:["ambition","tragic hero"]},
+{n:23,q:"[[Lay on]], Macduff",ref:"A5S8",who:"Macbeth",g:"Macbeth",method:"Imperative + short, blunt words",meaning:"He fights to the end; a flicker of the brave soldier from #2",themes:["tragic hero","masculinity and gender"]},
+{n:24,q:"this dead [[butcher]] and his [[fiend-like]] queen",ref:"FINAL",who:"Malcolm",g:"Malcolm",method:"Dehumanising metaphors",meaning:"How they are remembered: a murderer and a demon, not a king and queen",themes:["kingship and tyranny","masculinity and gender"]}
+];
+const CTX=[
+{name:"King James I",text:"Believed in witches (Daemonologie, 1597) and was descended from Banquo.",links:[1,4,6,16]},
+{name:"Divine right of kings",text:"God chose the king, so killing one is a sin.",links:[11,18,24]},
+{name:"Gunpowder Plot, 1605",text:"A plot to kill James; the plotters were linked with equivocation.",links:[4,17]},
+{name:"Jacobean women",text:"Expected to be gentle and obedient.",links:[5,6,9,24]},
+{name:"Tragic hero",text:"A fatal flaw (hamartia), here ambition.",links:[2,8,22,23]}
+];
+const THEMES=["ambition","guilt","supernatural","appearance vs reality","fate vs free will","tragic hero","kingship and tyranny","masculinity and gender","violence","relationships"];
+const GROUPS=[...new Set(Q.map(x=>x.g))];
+const byN=n=>Q[n-1];
+
+/* ---------- STORAGE (per-browser progress) ---------- */
+const KEY="macbeth-recall-v1";
+const DAY=864e5, INTERVAL=[0,0,1,3,7,16];
+function blank(){return{cards:Object.fromEntries(Q.map(x=>[x.n,{box:0,due:0,right:0,wrong:0}])),streak:0,last:"",best:{}}}
+let S=blank();
+try{const raw=localStorage.getItem(KEY); if(raw){const p=JSON.parse(raw); S={...blank(),...p,cards:{...blank().cards,...(p.cards||{})}}}}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function dayStr(d=new Date()){return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()}
+function studied(){const t=dayStr(); if(S.last===t)return; const y=dayStr(new Date(Date.now()-DAY)); S.streak=(S.last===y?S.streak:0)+1; S.last=t}
+function hit(n,ok){const c=S.cards[n]; ok?c.right++:c.wrong++; studied(); save()}
+function isDue(n){const c=S.cards[n];return c.box===0||c.due<=Date.now()}
+
+/* ---------- HELPERS ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const plain=q=>q.replace(/\[\[|\]\]/g,"");
+const qHTML=q=>esc(q).replace(/\[\[(.+?)\]\]/g,"<u>$1</u>");
+const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const R=["","I","II","III","IV","V","VI","VII","VIII"];
+function refTxt(ref){if(ref==="FINAL")return"Final scene";const m=ref.match(/A(\d)S(\d)/);return`Act ${m[1]} · Sc. ${m[2]}`}
+function refMono(ref){if(ref==="FINAL")return"V.final";const m=ref.match(/A(\d)S(\d)/);return R[m[1]]+"."+R[m[2]].toLowerCase()}
+const actOf=x=>x.ref==="FINAL"?5:+x.ref[1];
+const whoLine=x=>`<span class="who"><b>${esc(x.who)}</b> · ${refTxt(x.ref)} · ${refMono(x.ref)}</span>`;
+function weight(n){const c=S.cards[n];return (c.wrong+1)/(c.right+c.wrong+2)+(5-c.box)*0.12+(isDue(n)?0.3:0)}
+function pickWeighted(pool,k){pool=[...pool];const out=[];while(out.length<k&&pool.length){const tot=pool.reduce((s,n)=>s+weight(n),0);let r=Math.random()*tot,i=0;for(;i<pool.length-1;i++){r-=weight(pool[i]);if(r<=0)break}out.push(pool.splice(i,1)[0])}return out}
+const norm=w=>w.toLowerCase().replace(/[’‘]/g,"'").replace(/[^a-z]/g,"");
+const tokens=s=>s.replace(/[—…\/]/g," ").split(/\s+/).filter(t=>norm(t));
+function lcsMatch(target,typed){const a=target.map(norm),b=typed.map(norm),m=a.length,n=b.length;const d=Array.from({length:m+1},()=>new Array(n+1).fill(0));
+  for(let i=m-1;i>=0;i--)for(let j=n-1;j>=0;j--)d[i][j]=close(a[i],b[j])?d[i+1][j+1]+1:Math.max(d[i+1][j],d[i][j+1]);
+  const hits=new Array(m).fill(false);let i=0,j=0;while(i<m&&j<n){if(close(a[i],b[j])){hits[i]=true;i++;j++}else if(d[i+1][j]>=d[i][j+1])i++;else j++}return hits}
+function lev(a,b){const d=[...Array(b.length+1).keys()];for(let i=1;i<=a.length;i++){let p=d[0];d[0]=i;for(let j=1;j<=b.length;j++){const t=d[j];d[j]=Math.min(d[j]+1,d[j-1]+1,p+(a[i-1]===b[j-1]?0:1));p=t}}return d[b.length]}
+function close(a,b){if(a===b)return true;if(a.length>=5&&b.length>=4)return lev(a,b)<=1;return false}
+function scoreBadge(p){const c=p>=.9?"good":p>=.6?"mid":"low";return`<span class="score ${c}">${Math.round(p*100)}% recalled</span>`}
+const STOP=new Set("the and that this with from into then them they their there what when which while about after again also because been before being both but can could does doing each every have having here him his her how its just more most much must not now only other over same she should some such than too very was were what who whom why will would your shows show used uses makes make".split(" "));
+function keywords(text){return [...new Set(tokens(text).map(norm).filter(w=>w.length>3&&!STOP.has(w)))]}
+function stemHit(w,typedSet){const s=w.slice(0,5);for(const t of typedSet){if(t.slice(0,5)===s)return true}return false}
+
+/* ---------- HEADER ---------- */
+function renderHeader(){
+  const secure=Q.filter(x=>S.cards[x.n].box>=4).length, due=Q.filter(x=>isDue(x.n)).length;
+  $("#stats").innerHTML=`<div class="stat"><b>${secure}<small style="font-size:16px">/24</small></b><span>Secure</span></div><div class="stat"><b>${due}</b><span>Due now</span></div><div class="stat"><b>${S.streak||0}</b><span>Day streak</span></div>`;
+  $("#candles").innerHTML=Q.map(x=>{const c=S.cards[x.n];return`<div class="candle ${isDue(x.n)?"due":""}" title="#${x.n} · ${esc(plain(x.q))} · level ${c.box}/5"><i style="height:${c.box/5*100}%"></i></div>`}).join("");
+  $("#candles").setAttribute("aria-label",`${secure} of 24 quotations secure, ${due} due for review`);
+}
+
+/* ---------- ROUTER ---------- */
+let view="home", timer=null;
+function go(v,...args){clearInterval(timer);view=v;renderHeader();VIEWS[v](...args);window.scrollTo({top:0});}
+const backBtn=`<button class="back" onclick="go('home')">← All modes</button>`;
+
+const MODES=[
+ ["gap","Gap Fill","The underlined key word is missing. Type it in.","Exact wording"],
+ ["lightning","Lightning Round","60 seconds. Who says it, and in which act?","Speaker & act"],
+ ["theme","Theme Hunt","Given a theme, find every quotation that fits.","Themes"],
+ ["context","Context Links","Match Jacobean context to the quotations it supports.","AO3 context"],
+ ["order","Play Order","Put five quotations in the order they appear.","Chronology"],
+ ["exam","Exam Plan","Pick three quotations for an essay question, then analyse one.","Essay planning"],
+];
+const VIEWS={};
+VIEWS.home=()=>{
+  const due=Q.filter(x=>isDue(x.n)).length;
+  $("#app").innerHTML=`<div class="wrap" style="gap:16px">
+    <section class="today">
+      <div><div class="eyebrow" style="color:inherit;opacity:.7">Start here · spaced repetition</div>
+      <h2>Daily Recall</h2>
+      <p>${due?`${due} quotation${due>1?"s are":" is"} due. You type the answer first, then check and rate yourself.`:"Nothing is due. Run an extra round on your weakest quotations."}</p></div>
+      <button class="btn primary" onclick="go('recall')">${due?"Start round":"Extra practice"}</button>
+    </section>
+    <div class="modes">${MODES.map(([id,t,d,s])=>`<button class="mode" onclick="go('${id}')"><span class="mono">${s}</span><h3>${t}</h3><p>${d}</p></button>`).join("")}
+      <button class="mode" onclick="go('bank')" style="grid-column:1/-1"><span class="mono">Reference · cover and test</span><h3>Quote Bank</h3><p>All 24 with method, meaning and themes. Hide one side and test yourself.</p></button>
+    </div>
+    <p class="why"><b>Why it works.</b> Every mode makes you produce the answer before you see it, which builds memory far better than rereading. Daily Recall brings back what you forget soon and spaces out what you know, so quotes you rate <b>Forgot</b> return later in the same round, and secure ones wait up to 16 days. Every mode feeds the weakest quotations to you more often. Progress is saved in this browser only.</p>
+  </div>`;
+};
+
+/* ---------- DAILY RECALL ---------- */
+let RS=null;
+VIEWS.recall=()=>{
+  let pool=Q.filter(x=>isDue(x.n)).map(x=>x.n);
+  pool.sort((a,b)=>S.cards[a].box-S.cards[b].box||Math.random()-.5);
+  let queue=pool.slice(0,10);
+  if(!queue.length) queue=pickWeighted(Q.map(x=>x.n),8);
+  RS={queue,i:0,rep:{},res:{1:[],2:[],3:[]},total:queue.length};
+  nextRecall();
+};
+function cardType(n){const b=S.cards[n].box;const opts=b<=1?["finish","unpack"]:b<=3?["finish","name","unpack"]:["name","unpack"];return opts[Math.random()*opts.length|0]}
+function nextRecall(){
+  if(RS.i>=RS.queue.length)return recallDone();
+  const n=RS.queue[RS.i], x=byN(n), type=cardType(n);
+  RS.cur={n,type,themes:new Set()};
+  const toks=tokens(plain(x.q)); const k=Math.max(1,Math.min(toks.length-2,Math.ceil(toks.length*.4)));
+  RS.cur.k=k;
+  let prompt="",input="";
+  if(type==="finish"){
+    prompt=`<div class="kind">Finish the line</div><p class="quote">“${esc(toks.slice(0,k).join(" "))} …”</p>${whoLine(x)}`;
+    input=`<div><label class="lbl" for="ans">Type the rest from memory</label><textarea id="ans" rows="2" placeholder="…"></textarea></div>`;
+  }else if(type==="name"){
+    prompt=`<div class="kind">Name the quotation</div><dl class="cue"><dt>Who</dt><dd>${esc(x.who)} · ${refTxt(x.ref)}</dd><dt>Method</dt><dd>${esc(x.method)}</dd><dt>Meaning</dt><dd>${esc(x.meaning)}</dd></dl>`;
+    input=`<div><label class="lbl" for="ans">Type the quotation word for word</label><textarea id="ans" rows="2"></textarea></div>`;
+  }else{
+    prompt=`<div class="kind">Unpack it</div><p class="quote">“${qHTML(x.q)}”</p>${whoLine(x)}`;
+    input=`<div><label class="lbl" for="ans">Method and meaning, in your own words</label><textarea id="ans" rows="3" placeholder="Shakespeare uses … to show …"></textarea></div>
+      <div><span class="lbl">Which themes does it fit?</span><div class="chips" id="tchips">${THEMES.map(t=>`<button class="chip" aria-pressed="false" data-t="${t}">${t}</button>`).join("")}</div></div>`;
+  }
+  $("#app").innerHTML=`<div class="wrap" style="gap:14px">
+    <div class="bar">${backBtn}<span class="mono">Card ${Math.min(RS.i+1,RS.queue.length)} of ${RS.queue.length} · #${n}</span></div>
+    <div class="progress"><i style="width:${RS.i/RS.queue.length*100}%"></i></div>
+    <section class="card">${prompt}${input}
+      <div class="row end"><span class="mono" style="margin-right:auto">Enter to check</span><button class="btn primary" id="check">Check</button></div>
+      <div id="reveal"></div>
+    </section></div>`;
+  const ans=$("#ans"); ans.focus();
+  ans.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();revealRecall()}});
+  $("#check").onclick=revealRecall;
+  document.querySelectorAll("#tchips .chip").forEach(c=>c.onclick=()=>{const on=c.getAttribute("aria-pressed")!=="true";c.setAttribute("aria-pressed",on);on?RS.cur.themes.add(c.dataset.t):RS.cur.themes.delete(c.dataset.t)});
+}
+function revealRecall(){
+  if(RS.cur.revealed)return; RS.cur.revealed=true;
+  const {n,type,k}=RS.cur, x=byN(n), typed=$("#ans").value; $("#ans").readOnly=true; $("#check").hidden=true;
+  let html="", p=0;
+  if(type==="finish"||type==="name"){
+    const all=tokens(plain(x.q)), target=type==="finish"?all.slice(k):all;
+    const hits=lcsMatch(target,tokens(typed)); p=hits.filter(Boolean).length/target.length;
+    const lead=type==="finish"?`<span>${esc(all.slice(0,k).join(" "))} </span>`:"";
+    html+=`<div class="row">${scoreBadge(p)}<span class="mono">green = you had it · red = missed</span></div>
+      <p class="quote diff">“${lead}${target.map((w,i)=>`<span class="${hits[i]?"hit":"gap"}">${esc(w)}</span>`).join(" ")}”</p>`;
+    if(type==="finish")html+=`<dl class="notes"><dt>Method</dt><dd>${esc(x.method)}</dd><dt>Meaning</dt><dd>${esc(x.meaning)}</dd><dt>Themes</dt><dd>${esc(x.themes.join(", "))}</dd></dl>`;
+    else html+=whoLine(x);
+  }else{
+    const kws=keywords(x.method+" "+x.meaning), typedSet=new Set(tokens(typed).map(norm));
+    const kwHit=kws.filter(w=>stemHit(w,typedSet)).length;
+    const right=new Set(x.themes), chosen=RS.cur.themes;
+    const tOk=[...chosen].filter(t=>right.has(t)).length, tWrong=chosen.size-tOk;
+    const tScore=Math.max(0,(tOk-tWrong*.5)/right.size);
+    p=kws.length?(kwHit/kws.length)*.6+tScore*.4:tScore;
+    document.querySelectorAll("#tchips .chip").forEach(c=>{const t=c.dataset.t,on=chosen.has(t);c.disabled=true;c.className="chip"+(right.has(t)?(on?" ok":" miss"):(on?" wrong":""));c.setAttribute("aria-pressed","false")});
+    const mark=s=>esc(s).split(/(\s+)/).map(w=>{const nw=norm(w);return nw.length>3&&!STOP.has(nw)&&stemHit(nw,typedSet)?`<span class="hit">${w}</span>`:w}).join("");
+    html+=`<div class="row"><span class="score ${p>=.7?"good":p>=.4?"mid":"low"}">${kwHit}/${kws.length} key words · ${tOk}/${right.size} themes${tWrong?` · ${tWrong} extra`:""}</span><span class="mono">dashed chip = theme you missed</span></div>
+      <dl class="notes kw"><dt>Method</dt><dd>${mark(x.method)}</dd><dt>Meaning</dt><dd>${mark(x.meaning)}</dd></dl>`;
+  }
+  const ctx=CTX.filter(c=>c.links.includes(n));
+  if(ctx.length)html+=`<div class="ctx"><span class="eyebrow">Context link</span><br>${ctx.map(c=>`<b>${esc(c.name)}:</b> ${esc(c.text)}`).join("<br>")}</div>`;
+  const sug=p>=.85?3:p>=.5?2:1;
+  html+=`<div><span class="lbl">How did you do? (keys 1 · 2 · 3)</span><div class="grades">
+    <button class="grade g1 ${sug===1?"sugg":""}" data-g="1"><b>Forgot</b><small>back this round</small></button>
+    <button class="grade g2 ${sug===2?"sugg":""}" data-g="2"><b>Shaky</b><small>tomorrow</small></button>
+    <button class="grade g3 ${sug===3?"sugg":""}" data-g="3"><b>Got it</b><small>${INTERVAL[Math.min(5,S.cards[n].box+1)]||1} day${(INTERVAL[Math.min(5,S.cards[n].box+1)]||1)>1?"s":""}</small></button></div></div>`;
+  const r=$("#reveal"); r.className="answer"; r.innerHTML=html;
+  r.querySelectorAll(".grade").forEach(b=>b.onclick=()=>gradeRecall(+b.dataset.g));
+  r.querySelector(".grade.sugg").focus();
+}
+function gradeRecall(g){
+  const n=RS.cur.n,c=S.cards[n];
+  if(g===1){c.box=1;c.due=0;c.wrong++;RS.rep[n]=(RS.rep[n]||0)+1;if(RS.rep[n]<=2)RS.queue.splice(Math.min(RS.queue.length,RS.i+4),0,n)}
+  else if(g===2){c.box=Math.max(1,c.box);c.due=Date.now()+DAY*.9;c.right++}
+  else{c.box=Math.min(5,c.box+1);c.due=Date.now()+Math.max(1,INTERVAL[c.box])*DAY*.95;c.right++}
+  if(!RS.res[g].includes(n))RS.res[g].push(n);
+  studied();save();RS.i++;renderHeader();nextRecall();
+}
+function recallDone(){
+  const f=RS.res[1];
+  $("#app").innerHTML=`<div class="wrap" style="gap:14px"><div class="bar">${backBtn}</div>
+   <section class="card"><div class="kind">Round complete</div>
+    <div class="row" style="gap:28px"><div><div class="big">${RS.res[3].length}</div><span class="mono">Got it</span></div><div><div class="big">${RS.res[2].length}</div><span class="mono">Shaky</span></div><div><div class="big">${f.length}</div><span class="mono">Forgot at least once</span></div></div>
+    ${f.length?`<div><span class="lbl">Say these aloud three times now</span><ul class="list">${f.map(n=>`<li><span class="quote sm">“${qHTML(byN(n).q)}”</span><br>${whoLine(byN(n))}</li>`).join("")}</ul></div>`:""}
+    <div class="row"><button class="btn primary" onclick="go('recall')">Another round</button><button class="btn" onclick="go('gap')">Try Gap Fill</button></div>
+   </section></div>`;
+}
+
+/* ---------- GAP FILL ---------- */
+let GS=null;
+VIEWS.gap=()=>{GS={list:pickWeighted(Q.map(x=>x.n),8),i:0,score:0,miss:[]};gapCard()};
+function gapCard(){
+  if(GS.i>=GS.list.length)return endScreen("Gap Fill",GS.score,GS.list.length,GS.miss,"gap");
+  const x=byN(GS.list[GS.i]); let bi=0;
+  const body=esc(x.q).replace(/\[\[(.+?)\]\]/g,(m,w)=>`<input type="text" id="gap${bi}" data-i="${bi++}" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="missing word" style="width:${Math.max(5,w.length+2)}ch">`);
+  $("#app").innerHTML=`<div class="wrap" style="gap:14px"><div class="bar">${backBtn}<span class="mono">${GS.i+1} of ${GS.list.length} · score ${GS.score}</span></div>
+   <div class="progress"><i style="width:${GS.i/GS.list.length*100}%"></i></div>
+   <section class="card"><div class="kind">Fill the underlined ${bi>1?"words":"word"}</div>
+    <p class="quote gapq">“${body}”</p>
+    <div id="hint"><button class="btn ghost" id="hintb">Show hint: speaker and meaning</button></div>
+    <div class="row end"><button class="btn primary" id="check">Check</button></div><div id="reveal"></div></section></div>`;
+  const ins=[...document.querySelectorAll(".gapq input")]; ins[0].focus();
+  ins.forEach((el,i)=>el.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();if(GS.done)return gapNext();i<ins.length-1&&!ins[i+1].value?ins[i+1].focus():gapCheck()}}));
+  $("#hintb").onclick=()=>{$("#hint").innerHTML=`${whoLine(x)}<p style="margin:4px 0 0">${esc(x.meaning)}</p>`;GS.hint=true};
+  $("#check").onclick=gapCheck; GS.done=false; GS.hint=false;
+}
+function gapCheck(){
+  if(GS.done)return gapNext(); GS.done=true;
+  const x=byN(GS.list[GS.i]), ans=[...x.q.matchAll(/\[\[(.+?)\]\]/g)].map(m=>m[1]);
+  let all=true, spell=false, fixes=[];
+  document.querySelectorAll(".gapq input").forEach((el,i)=>{
+    const want=ans[i], got=norm(el.value), accept=[want,...((x.alt||{})[want]||[])].map(norm);
+    let ok=accept.includes(got); if(!ok&&got&&accept.some(a=>a.length>=5&&lev(a,got)<=1)){ok=true;spell=true}
+    el.readOnly=true; el.classList.add(ok?"ok":"bad"); if(!ok){all=false;fixes.push(want)}
+  });
+  if(all)GS.score++; else GS.miss.push(x.n); hit(x.n,all);
+  $("#reveal").className="answer";
+  $("#reveal").innerHTML=`${all?`<span class="score good">Correct${spell?" · check your spelling":""}</span>`:`<span class="fix">Answer: ${fixes.map(esc).join(", ")}</span>`}
+   <p class="quote sm" style="margin:0">“${qHTML(x.q)}”</p>${whoLine(x)}<dl class="notes"><dt>Method</dt><dd>${esc(x.method)}</dd><dt>Meaning</dt><dd>${esc(x.meaning)}</dd></dl>`;
+  $("#check").textContent="Next →"; $("#check").focus();
+}
+function gapNext(){GS.i++;gapCard()}
+
+/* ---------- LIGHTNING ---------- */
+let LS=null;
+VIEWS.lightning=()=>{
+  const best=S.best.lightning||0;
+  $("#app").innerHTML=`<div class="wrap" style="gap:14px"><div class="bar">${backBtn}</div><section class="card">
+    <div class="kind">Lightning Round</div><h2 style="font-size:32px">60 seconds on the clock</h2>
+    <p style="margin:0">Each card asks either <b>who says it</b> or <b>which act</b> it comes from. Use the number keys to answer fast. A wrong answer costs 3 seconds.</p>
+    <p class="mono" style="margin:0">Best score: ${best}</p>
+    <div class="row"><button class="btn primary" id="go">Start</button></div></section></div>`;
+  $("#go").onclick=startLightning; $("#go").focus();
+};
+function startLightning(){LS={t:60,score:0,miss:[],seen:0,lock:false};lightCard();
+  timer=setInterval(()=>{LS.t--;const el=$("#timer");if(el){el.textContent=LS.t;el.classList.toggle("low",LS.t<=10)}if(LS.t<=0){clearInterval(timer);lightDone()}},1000)}
+function lightCard(){
+  const x=byN(pickWeighted(Q.map(q=>q.n),1)[0]), type=Math.random()<.5?"who":"act"; LS.cur={x,type};
+  let opts;
+  if(type==="who"){opts=shuffle([x.g,...shuffle(GROUPS.filter(g=>g!==x.g)).slice(0,3)]);LS.cur.ans=x.g}
+  else{opts=[1,2,3,4,5];LS.cur.ans=actOf(x)}
+  LS.cur.opts=opts;
+  $("#app").innerHTML=`<div class="wrap" style="gap:14px"><div class="bar">${backBtn}<span class="mono">score ${LS.score}</span><span class="timer ${LS.t<=10?"low":""}" id="timer">${LS.t}</span></div>
+   <section class="card"><div class="kind">${type==="who"?"Who says it?":"Which act?"}</div>
+    <p class="quote">“${qHTML(x.q)}”</p>
+    <div class="opts ${type==="act"?"acts":""}">${opts.map((o,i)=>`<button class="opt" data-i="${i}">${type==="act"?R[o]:`<kbd>${i+1}</kbd>${esc(o)}`}</button>`).join("")}</div>
+   </section></div>`;
+  document.querySelectorAll(".opt").forEach(b=>b.onclick=()=>lightAnswer(+b.dataset.i));
+  LS.lock=false;
+}
+function lightAnswer(i){
+  if(LS.lock||LS.t<=0)return; LS.lock=true;
+  const {opts,ans,x}=LS.cur, ok=opts[i]===ans, btns=document.querySelectorAll(".opt");
+  btns[i].classList.add(ok?"ok":"bad"); if(!ok){btns[opts.indexOf(ans)].classList.add("ok");LS.t=Math.max(0,LS.t-3);LS.miss.push(x.n)} else LS.score++;
+  hit(x.n,ok); setTimeout(()=>{if(LS.t>0)lightCard()},ok?350:1100);
+}
+document.addEventListener("keydown",e=>{
+  if(view==="lightning"&&LS&&LS.cur&&LS.t>0&&/^[1-5]$/.test(e.key)){const i=+e.key-1;if(i<LS.cur.opts.length)lightAnswer(i)}
+  if(view==="recall"&&RS&&RS.cur&&RS.cur.revealed&&/^[1-3]$/.test(e.key)&&document.activeElement.tagName!=="TEXTAREA"){gradeRecall(+e.key)}
+});
+function lightDone(){
+  const nb=LS.score>(S.best.lightning||0); if(nb){S.best.lightning=LS.score;save()}
+  endScreen("Lightning Round",LS.score,null,[...new Set(LS.miss)],"lightning",nb?"New best!":"");
+}
+
+/* ---------- SHARED END SCREEN ---------- */
+function endScreen(title,score,of,miss,again,extra=""){
+  $("#app").innerHTML=`<div class="wrap" style="gap:14px"><div class="bar">${backBtn}</div><section class="card">
+   <div class="kind">${title} · done</div><div class="row"><div class="big">${score}${of?`<span style="font-size:28px" class="muted"> / ${of}</span>`:""}</div>${extra?`<span class="score good">${extra}</span>`:""}</div>
+   ${miss.length?`<div><span class="lbl">Fix these: cover each one and say it, then check</span><ul class="list">${miss.map(n=>{const x=byN(n);return`<li><span class="quote sm">“${qHTML(x.q)}”</span><br>${whoLine(x)}</li>`}).join("")}</ul></div>`:`<p style="margin:0">Clean sweep.</p>`}
+   <div class="row"><button class="btn primary" onclick="go('${again}')">Play again</button><button class="btn" onclick="go('recall')">Daily Recall</button></div></section></div>`;
+}
+
+/* ---------- THEME HUNT + CONTEXT LINKS ---------- */
+let HS=null;
+VIEWS.theme=()=>hunt("theme"); VIEWS.context=()=>hunt("context");
+function hunt(kind){
+  let label,sub,matches;
+  if(kind==="theme"){const ok=THEMES.filter(t=>Q.filter(x=>x.themes.includes(t)).length>=2);const t=ok[Math.random()*ok.length|0];label=t;matches=Q.filter(x=>x.themes.includes(t)).map(x=>x.n);sub="Select every quotation tagged with this theme."}
+  else{const c=CTX[Math.random()*CTX.length|0];label=c.name;sub=c.text;matches=c.links}
+  const size=kind==="theme"?8:6;
+  const pickM=shuffle(matches).slice(0,Math.min(matches.length,kind==="theme"?4:matches.length));
+  const others=shuffle(Q.map(x=>x.n).filter(n=>!matches.includes(n))).slice(0,size-pickM.length);
+  HS={kind,label,sub,set:new Set(pickM),tiles:shuffle([...pickM,...others]),sel:new Set(),done:false,round:(HS&&HS.kind===kind?HS.round:0)+1,total:(HS&&HS.kind===kind?HS.total:0)};
+  renderHunt();
+}
+function renderHunt(){
+  const {kind,label,sub,tiles}=HS;
+  $("#app").innerHTML=`<div class="wrap" style="gap:14px"><div class="bar">${backBtn}<span class="mono">round ${HS.round} · total ${HS.total}</span></div>
+   <section class="card"><div class="kind">${kind==="theme"?"Theme Hunt":"Context Links"}</div>
+   <h2 style="font-size:34px">${esc(kind==="theme"?label[0].toUpperCase()+label.slice(1):label)}</h2>
+   ${kind==="context"?`<div class="ctx">${esc(sub)}<br><span class="mono">Which quotations would you use this context with?</span></div>`:`<p style="margin:0" class="muted">${sub} There are between 2 and 4.</p>`}
+   <div class="tiles">${tiles.map(n=>`<button class="tile" aria-pressed="false" data-n="${n}"><span class="mark">✓</span>“${qHTML(byN(n).q)}”</button>`).join("")}</div>
+   <div class="row end"><span class="mono" style="margin-right:auto" id="hres"></span><button class="btn primary" id="check">Check</button></div><div id="reveal"></div></section></div>`;
+  document.querySelectorAll(".tile").forEach(t=>t.onclick=()=>{if(HS.done)return;const n=+t.dataset.n,on=!HS.sel.has(n);on?HS.sel.add(n):HS.sel.delete(n);t.setAttribute("aria-pressed",on)});
+  $("#check").onclick=checkHunt;
+}
+function checkHunt(){
+  if(HS.done)return hunt(HS.kind); HS.done=true;
+  let ok=0,wrong=0;
+  document.querySelectorAll(".tile").forEach(t=>{const n=+t.dataset.n,isM=HS.set.has(n),on=HS.sel.has(n);t.disabled=true;t.setAttribute("aria-pressed","false");
+    const x=byN(n);
+    if(isM&&on){t.classList.add("ok");ok++;hit(n,true)}else if(isM){t.classList.add("miss");hit(n,false)}else if(on){t.classList.add("wrong");wrong++;hit(n,false)}
+    if(isM||on)t.insertAdjacentHTML("beforeend",`<span class="note">#${n} · ${esc(x.who)} · ${isM?(HS.kind==="theme"?esc(x.meaning):esc(x.method)):"themes: "+esc(x.themes.join(", "))}</span>`);
+    t.querySelector(".mark").textContent=isM?(on?"✓":"!"):(on?"✗":"");
+  });
+  const pts=Math.max(0,ok-wrong); HS.total+=pts;
+  $("#hres").textContent=`${ok}/${HS.set.size} found${wrong?` · ${wrong} wrong`:""} · +${pts}`;
+  $("#reveal").className="answer";
+  $("#reveal").innerHTML=`<p class="mono" style="margin:0">Green = found · dashed = missed · red = doesn't fit. Before moving on, say out loud how one green quotation shows ${HS.kind==="theme"?"this theme":"this context"}.</p>`;
+  $("#check").textContent="Next round →"; $("#check").focus(); renderHeader();
+}
+
+/* ---------- PLAY ORDER ---------- */
+let OS=null;
+VIEWS.order=()=>{
+  const pick=shuffle(Q.map(x=>x.n)).slice(0,5); // distinct numbers = distinct positions
+  OS={pick,tiles:shuffle(pick),seq:[],done:false,round:(OS?OS.round:0)+1,total:OS?OS.total:0};renderOrder();
+};
+function renderOrder(){
+  $("#app").innerHTML=`<div class="wrap" style="gap:14px"><div class="bar">${backBtn}<span class="mono">round ${OS.round} · total ${OS.total}</span></div>
+   <section class="card"><div class="kind">Play Order</div><p style="margin:0">Tap the quotations in the order they appear in the play, earliest first. Tap again to undo.</p>
+   <div class="tiles" style="grid-template-columns:1fr">${OS.tiles.map(n=>{const pos=OS.seq.indexOf(n);return`<button class="tile" aria-pressed="${pos>=0}" data-n="${n}"><span class="mark">${pos>=0?pos+1:""}</span>“${qHTML(byN(n).q)}”</button>`}).join("")}</div>
+   <div class="row end"><span class="mono" id="ores" style="margin-right:auto"></span><button class="btn primary" id="check" ${OS.seq.length<5?"disabled":""}>Check</button></div></section></div>`;
+  document.querySelectorAll(".tile").forEach(t=>t.onclick=()=>{if(OS.done)return;const n=+t.dataset.n,p=OS.seq.indexOf(n);p>=0?OS.seq.splice(p):OS.seq.push(n);renderOrder()});
+  $("#check").onclick=checkOrder;
+}
+function checkOrder(){
+  if(OS.done)return VIEWS.order(); OS.done=true;
+  const correct=[...OS.pick].sort((a,b)=>a-b); let ok=0;
+  document.querySelectorAll(".tile").forEach(t=>{const n=+t.dataset.n,want=correct.indexOf(n),got=OS.seq.indexOf(n),good=want===got;if(good)ok++;
+    t.disabled=true;t.classList.add(good?"ok":"wrong");t.querySelector(".mark").textContent=want+1;
+    t.insertAdjacentHTML("beforeend",`<span class="note">${refTxt(byN(n).ref)} · ${esc(byN(n).who)}${good?"":` · you put it ${got+1}`}</span>`);hit(n,good)});
+  // show in correct order
+  const box=document.querySelector(".tiles"); correct.forEach(n=>box.appendChild(box.querySelector(`[data-n="${n}"]`)));
+  OS.total+=ok; $("#ores").textContent=`${ok}/5 in the right place`; $("#check").textContent="Next round →"; $("#check").disabled=false; $("#check").focus(); renderHeader();
+}
+
+/* ---------- EXAM PLAN ---------- */
+let ES=null;
+VIEWS.exam=()=>{
+  const ok=THEMES.filter(t=>Q.filter(x=>x.themes.includes(t)).length>=3), t=ok[Math.random()*ok.length|0];
+  const stems=["How does Shakespeare present","Explore how Shakespeare presents ideas about","How far does Shakespeare use the play to explore"];
+  ES={t,stem:stems[Math.random()*3|0],sel:[],step:1}; renderExam();
+};
+function renderExam(){
+  const {t,stem}=ES, tName=t==="fate vs free will"?"fate and free will":t==="appearance vs reality"?"appearance and reality":t==="tragic hero"?"Macbeth as a tragic hero":t;
+  const head=`<div class="bar">${backBtn}<span class="mono">Step ${ES.step} of 2</span></div>
+   <section class="card"><div class="kind">Exam Plan</div><h2 style="font-size:clamp(24px,4.5vw,32px)">${stem} ${esc(tName)} in <i>Macbeth</i>?</h2>`;
+  if(ES.step===1){
+    $("#app").innerHTML=`<div class="wrap" style="gap:14px">${head}
+     <p style="margin:0" class="muted">Choose the three quotations you would build your essay on. Try to spread them across the play.</p>
+     <div class="tiles">${Q.map(x=>`<button class="tile" aria-pressed="${ES.sel.includes(x.n)}" data-n="${x.n}" style="font-size:16px"><span class="mark">${ES.sel.includes(x.n)?ES.sel.indexOf(x.n)+1:""}</span>“${qHTML(x.q)}”</button>`).join("")}</div>
+     <div class="row end"><span class="mono" style="margin-right:auto">${ES.sel.length}/3 chosen</span><button class="btn primary" id="check" ${ES.sel.length<3?"disabled":""}>Check my picks</button></div></section></div>`;
+    document.querySelectorAll(".tile").forEach(b=>b.onclick=()=>{const n=+b.dataset.n,i=ES.sel.indexOf(n);if(i>=0)ES.sel.splice(i,1);else if(ES.sel.length<3)ES.sel.push(n);const y=window.scrollY;renderExam();window.scrollTo(0,y)});
+    $("#check").onclick=()=>{ES.step=2;ES.sel.forEach(n=>hit(n,byN(n).themes.includes(ES.t)));ES.focus=ES.sel.find(n=>byN(n).themes.includes(ES.t))||Q.find(x=>x.themes.includes(ES.t)).n;renderExam();renderHeader()};
+  }else{
+    const fit=ES.sel.filter(n=>byN(n).themes.includes(t)), acts=new Set(ES.sel.map(n=>actOf(byN(n)))), others=Q.filter(x=>x.themes.includes(t)&&!ES.sel.includes(x.n));
+    const f=byN(ES.focus);
+    $("#app").innerHTML=`<div class="wrap" style="gap:14px">${head}
+     <div class="row"><span class="score ${fit.length===3?"good":fit.length?"mid":"low"}">${fit.length}/3 tagged with this theme</span><span class="score ${acts.size>=3?"good":"mid"}">spread over ${acts.size} act${acts.size>1?"s":""}</span></div>
+     <ul class="list">${ES.sel.map(n=>{const x=byN(n),g=x.themes.includes(t);return`<li style="border-color:${g?"var(--good)":"var(--bad)"}"><span class="quote sm">“${qHTML(x.q)}”</span><br><span class="mono">${g?"fits":"not tagged for this theme"} · ${refTxt(x.ref)}</span></li>`}).join("")}</ul>
+     ${others.length?`<p style="margin:0" class="muted">Other strong choices: ${others.map(x=>`#${x.n} “${esc(plain(x.q))}”`).join("; ")}.</p>`:""}
+     <div class="answer"><div class="kind">Now analyse one</div><p class="quote sm" style="margin:0">“${qHTML(f.q)}”</p>${whoLine(f)}
+      <div><label class="lbl" for="para">Write one sentence of analysis: method, effect, and context if you can</label><textarea id="para" rows="4" placeholder="Shakespeare uses … which suggests … A Jacobean audience would …"></textarea></div>
+      <div class="row end"><button class="btn primary" id="model">Compare with the bank</button></div><div id="reveal"></div></div></section></div>`;
+    $("#model").onclick=()=>{const typedSet=new Set(tokens($("#para").value).map(norm)),kws=keywords(f.method+" "+f.meaning),k=kws.filter(w=>stemHit(w,typedSet)).length,ctx=CTX.filter(c=>c.links.includes(f.n));
+      $("#reveal").innerHTML=`<span class="score ${k/kws.length>=.5?"good":"mid"}">${k}/${kws.length} key ideas mentioned</span>
+       <dl class="notes"><dt>Method</dt><dd>${esc(f.method)}</dd><dt>Meaning</dt><dd>${esc(f.meaning)}</dd><dt>Themes</dt><dd>${esc(f.themes.join(", "))}</dd></dl>
+       ${ctx.length?`<div class="ctx"><span class="eyebrow">Context to add</span><br>${ctx.map(c=>`<b>${esc(c.name)}:</b> ${esc(c.text)}`).join("<br>")}</div>`:`<p class="mono" style="margin:0">No context point is linked to this quotation in the bank.</p>`}
+       <div class="row"><button class="btn primary" onclick="go('exam')">New question</button><button class="btn" onclick="go('home')">Done</button></div>`;
+      $("#model").hidden=true;};
+  }
+}
+
+/* ---------- QUOTE BANK ---------- */
+let BS={cover:"none",theme:"all",open:new Set()};
+VIEWS.bank=()=>{
+  const list=Q.filter(x=>BS.theme==="all"||x.themes.includes(BS.theme));
+  const covered=(n,part)=>BS.cover===part&&!BS.open.has(n+part);
+  $("#app").innerHTML=`<div class="wrap" style="gap:14px"><div class="bar">${backBtn}</div>
+   <section class="card"><div class="kind">Quote Bank</div>
+   <div class="filters"><div><label class="lbl" for="tsel">Theme</label><select id="tsel"><option value="all">All 24 quotations</option>${THEMES.map(t=>`<option ${BS.theme===t?"selected":""} value="${t}">${t} (${Q.filter(x=>x.themes.includes(t)).length})</option>`).join("")}</select></div>
+    <div><span class="lbl">Cover</span><div class="seg">${[["none","Nothing"],["quote","Quotes"],["notes","Notes"]].map(([v,l])=>`<button aria-pressed="${BS.cover===v}" data-c="${v}">${l}</button>`).join("")}</div></div></div>
+   <div>${list.map(x=>{const c=S.cards[x.n];return`<div class="entry"><div><div class="num">${x.n}</div><div class="pips" title="level ${c.box}/5">${[1,2,3,4,5].map(i=>`<i class="${c.box>=i?"on":""}"></i>`).join("")}</div></div><div style="min-width:0">
+     ${covered(x.n,"quote")?`<button class="cover" data-o="${x.n}quote">Say the quotation, then tap to check · ${esc(x.who)}, ${refTxt(x.ref)}</button>`:`<p class="quote sm" style="margin:0">“${qHTML(x.q)}”</p>`}
+     <div style="margin-top:4px">${whoLine(x)} <span class="mono">· ${c.right}✓ ${c.wrong}✗</span></div>
+     ${covered(x.n,"notes")?`<button class="cover" style="margin-top:8px" data-o="${x.n}notes">Say the method, meaning and themes, then tap to check</button>`:`<dl class="notes"><dt>Method</dt><dd>${esc(x.method)}</dd><dt>Meaning</dt><dd>${esc(x.meaning)}</dd><dt>Themes</dt><dd>${esc(x.themes.join(", "))}</dd></dl>`}
+   </div></div>`}).join("")}</div>
+   <div class="answer"><span class="kind">Context</span><ul class="list">${CTX.map(c=>`<li><b>${esc(c.name)}:</b> ${esc(c.text)} <span class="mono">Use with ${c.links.map(n=>"#"+n).join(", ")}</span></li>`).join("")}</ul></div>
+   <div class="row" id="resetrow"><button class="btn ghost danger" id="reset">Reset my progress</button></div>
+   </section></div>`;
+  $("#tsel").onchange=e=>{BS.theme=e.target.value;BS.open.clear();const y=window.scrollY;VIEWS.bank();window.scrollTo(0,y)};
+  document.querySelectorAll(".seg button").forEach(b=>b.onclick=()=>{BS.cover=b.dataset.c;BS.open.clear();const y=window.scrollY;VIEWS.bank();window.scrollTo(0,y)});
+  document.querySelectorAll(".cover").forEach(b=>b.onclick=()=>{BS.open.add(b.dataset.o);const y=window.scrollY;VIEWS.bank();window.scrollTo(0,y)});
+  $("#reset").onclick=()=>{$("#resetrow").innerHTML=`<span>This clears all levels, scores and your streak.</span><button class="btn primary" id="yes">Yes, reset</button><button class="btn" id="no">Cancel</button>`;
+    $("#yes").onclick=()=>{S=blank();save();go("home")};$("#no").onclick=()=>VIEWS.bank()};
+};
+
+go("home");
+</script>
