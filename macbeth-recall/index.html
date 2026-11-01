@@ -166,6 +166,13 @@ textarea{min-height:84px;resize:vertical}
 .notes dd{margin:0}
 .danger{color:var(--bad)}
 .big{font-family:var(--f-display);font-size:56px;line-height:1}
+.ai-box{border:1px solid var(--accent);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
+.ai-box h4{margin:0;font-family:var(--f-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:500}
+.ai-box ul{margin:0;padding-left:18px}
+.ai-box .model{font-family:var(--f-display);font-style:italic;font-size:18px;border-left:2px solid var(--accent);padding-left:10px}
+.lvl{display:flex;gap:4px}.lvl i{width:26px;height:8px;border-radius:2px;background:var(--line)}.lvl i.on{background:var(--accent)}
+.syncchip{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.syncchip.on{color:var(--good)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -181,7 +188,7 @@ textarea{min-height:84px;resize:vertical}
       <div class="stats" id="stats"></div>
     </div>
     <div class="candles" id="candles" role="img"></div>
-    <div class="candlekey mono"><span>#1 Act 1</span><span>Each candle is one quotation. Taller = more secure.</span><span>#24 Act 5</span></div>
+    <div class="candlekey mono"><span>#1 Act 1 · <span class="syncchip" id="sync">Saved on this device</span></span><span>Each candle is one quotation. Taller = more secure.</span><span>#24 Act 5</span></div>
   </header>
   <main id="app" aria-live="polite"></main>
 </div>
@@ -231,7 +238,75 @@ const DAY=864e5, INTERVAL=[0,0,1,3,7,16];
 function blank(){return{cards:Object.fromEntries(Q.map(x=>[x.n,{box:0,due:0,right:0,wrong:0}])),streak:0,last:"",best:{}}}
 let S=blank();
 try{const raw=localStorage.getItem(KEY); if(raw){const p=JSON.parse(raw); S={...blank(),...p,cards:{...blank().cards,...(p.cards||{})}}}}catch(e){}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function save(){S.updated=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}pushSync()}
+
+/* ---------- CLAUDE RUNTIME: cloud sync (db+user), AI examiner (sample), exports (downloads) ---------- */
+const CAP={db:null,ref:null,sample:null,downloads:null};
+const use=n=>(window.claude&&window.claude.use)?window.claude.use(n).catch(()=>null):Promise.resolve(null);
+function setSync(t,on){const el=document.getElementById("sync");if(el){el.textContent=t;el.classList.toggle("on",!!on)}}
+function mergeState(a,b){const out={...a,cards:{...a.cards}};
+  for(const k of Object.keys(b.cards||{})){const x=a.cards[k]||{right:0,wrong:0},y=b.cards[k];out.cards[k]=(y.right+y.wrong)>(x.right+x.wrong)?y:x}
+  out.streak=Math.max(a.streak||0,b.streak||0);out.last=(a.last||"")>(b.last||"")?a.last:b.last;
+  out.best={...a.best};for(const k in (b.best||{}))out.best[k]=Math.max(out.best[k]||0,b.best[k]);return out}
+async function initSync(){
+  const [db,user]=await Promise.all([use("db"),use("user")]);
+  if(!db||!user)return;
+  let id=null;try{id=await user.id()}catch(e){}
+  if(!id)return;
+  CAP.db=db;CAP.ref=db.collection("data/users/"+id).doc("progress");setSync("Syncing…");
+  const t=setTimeout(()=>setSync("Saved on this device"),10000);
+  try{const snap=await CAP.ref.get();clearTimeout(t);
+    if(snap.exists){const remote=JSON.parse(snap.data().json||"{}");if(remote.cards){S=mergeState(S,remote);try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}renderHeader();if(view==="home")VIEWS.home()}}
+    await CAP.ref.set({json:JSON.stringify(S),updated:Date.now()});setSync("Synced to your account",true);
+  }catch(e){clearTimeout(t);CAP.ref=null;setSync("Saved on this device")}
+}
+let syncTimer=null,syncBusy=false,syncAgain=false;
+function pushSync(){if(!CAP.ref)return;clearTimeout(syncTimer);syncTimer=setTimeout(async()=>{
+  if(syncBusy){syncAgain=true;return}syncBusy=true;
+  try{await CAP.ref.set({json:JSON.stringify(S),updated:Date.now()});setSync("Synced to your account",true)}catch(e){setSync("Sync paused · saved here")}
+  syncBusy=false;if(syncAgain){syncAgain=false;pushSync()}},1500)}
+use("sample").then(s=>{CAP.sample=s;document.querySelectorAll("[data-ai]").forEach(el=>el.hidden=!s)});
+use("downloads").then(d=>{CAP.downloads=d;document.querySelectorAll("[data-dl]").forEach(el=>el.hidden=!d)});
+setTimeout(initSync,0);
+
+/* AI examiner: Claude marks a written answer against GCSE-style levels */
+function aiBox(sel,{x,answer,task}){
+  const host=document.querySelector(sel);if(!host)return;
+  host.innerHTML=`<div class="row" data-ai ${CAP.sample?"":"hidden"}><button class="btn" id="aibtn">Get examiner feedback from Claude</button><span class="mono">marks your writing, not just key words</span></div><div id="aiout"></div>`;
+  host.querySelector("#aibtn").onclick=async()=>{
+    const ans=(answer()||"").trim(),out=host.querySelector("#aiout"),btn=host.querySelector("#aibtn");
+    if(ans.split(/\s+/).length<4){out.innerHTML=`<p class="fix" style="margin:0">Write at least a short sentence first, then ask for feedback.</p>`;return}
+    btn.disabled=true;btn.textContent="Marking…";
+    const prompt=`You are a rigorous but encouraging GCSE English Literature examiner (AQA-style mark scheme) marking a 15-16 year old's short analysis of a quotation from Shakespeare's Macbeth.
+TASK: ${task}
+QUOTATION: "${plain(x.q)}" (${x.who}, ${refTxt(x.ref)})
+REVISION-BANK NOTES (reference, not the only valid reading): method: ${x.method}; meaning: ${x.meaning}; themes: ${x.themes.join(", ")}.${CTX.filter(c=>c.links.includes(x.n)).map(c=>` Linked context: ${c.name} - ${c.text}`).join("")}
+STUDENT ANSWER: """${ans.slice(0,1500)}"""
+Judge against: AO1 clear response with the quotation used; AO2 naming a method, zooming in on a single word, and explaining its effect; AO3 relevant context. Level 1 = simple/basic, 2 = clear, 3 = thoughtful and developed, 4 = convincing and critical. Credit valid ideas that differ from the notes. Never invent quotations. British spelling.
+Reply with ONLY JSON: {"level":1-4,"verdict":"one sentence","strengths":["max 2 items, under 18 words each"],"improve":["max 2 specific next steps, under 18 words each"],"zoom":"one word from the quotation to zoom in on and why, under 20 words","model":"the student's own point rewritten at level 4 in at most 2 sentences"}`;
+    try{const r=await CAP.sample.json(prompt,{modelTier:"default"});
+      const lv=Math.max(1,Math.min(4,+r.level||1));
+      out.innerHTML=`<div class="ai-box"><h4>Examiner feedback · Level ${lv} of 4</h4><div class="lvl">${[1,2,3,4].map(i=>`<i class="${i<=lv?"on":""}"></i>`).join("")}</div>
+        <p style="margin:0">${esc(r.verdict||"")}</p>
+        ${(r.strengths||[]).length?`<div><span class="lbl">What went well</span><ul>${r.strengths.map(s=>`<li>${esc(s)}</li>`).join("")}</ul></div>`:""}
+        ${(r.improve||[]).length?`<div><span class="lbl">Even better if</span><ul>${r.improve.map(s=>`<li>${esc(s)}</li>`).join("")}</ul></div>`:""}
+        ${r.zoom?`<div><span class="lbl">Zoom in</span>${esc(r.zoom)}</div>`:""}
+        ${r.model?`<div><span class="lbl">Level 4 version of your point</span><p class="model" style="margin:0">${esc(r.model)}</p></div>`:""}
+        <p class="mono" style="margin:0">AI feedback can be wrong. Check it against your teacher's advice.</p></div>`;
+      btn.hidden=true;
+    }catch(e){btn.disabled=false;btn.textContent="Get examiner feedback from Claude";
+      out.innerHTML=`<p class="fix" style="margin:0">${e&&e.code==="rate_limited"?"Too many requests just now. Wait a minute, then try again.":e&&e.code==="not_granted"?"Feedback needs permission to ask Claude. Allow it from this page's Permissions menu.":"Feedback didn't load. Try again in a moment."}</p>`;
+      if(e&&e.code==="not_granted")host.querySelector("[data-ai]").hidden=true;}
+  };
+}
+async function exportFile(kind){
+  const cell=s=>'"'+String(s).replace(/"/g,'""')+'"';let name,data;
+  if(kind==="deck"){name="macbeth-quote-flashcards.csv";data=Q.map(x=>[cell(plain(x.q)),cell(`#${x.n} ${x.who}, ${refTxt(x.ref)}<br>Method: ${x.method}<br>Meaning: ${x.meaning}<br>Themes: ${x.themes.join(", ")}`)].join(",")).join("\n")}
+  else{name="macbeth-weak-quotes.txt";const w=[...Q].sort((a,b)=>weight(b.n)-weight(a.n)).slice(0,8);
+    data="Macbeth: my 8 weakest quotations\n\n"+w.map(x=>{const c=S.cards[x.n];return`#${x.n} "${plain(x.q)}"\n   ${x.who}, ${refTxt(x.ref)} | level ${c.box}/5 | ${c.right} right, ${c.wrong} wrong\n   Method: ${x.method}\n   Meaning: ${x.meaning}`}).join("\n\n")+"\n"}
+  const msg=document.getElementById("dlmsg");
+  try{await CAP.downloads.save({filename:name,data});if(msg)msg.textContent="Saved "+name}catch(e){if(msg)msg.textContent=e&&e.code==="cancelled"?"Save cancelled.":"Couldn't save the file. Try again."}
+}
 function dayStr(d=new Date()){return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()}
 function studied(){const t=dayStr(); if(S.last===t)return; const y=dayStr(new Date(Date.now()-DAY)); S.streak=(S.last===y?S.streak:0)+1; S.last=t}
 function hit(n,ok){const c=S.cards[n]; ok?c.right++:c.wrong++; studied(); save()}
@@ -296,7 +371,7 @@ VIEWS.home=()=>{
     <div class="modes">${MODES.map(([id,t,d,s])=>`<button class="mode" onclick="go('${id}')"><span class="mono">${s}</span><h3>${t}</h3><p>${d}</p></button>`).join("")}
       <button class="mode" onclick="go('bank')" style="grid-column:1/-1"><span class="mono">Reference · cover and test</span><h3>Quote Bank</h3><p>All 24 with method, meaning and themes. Hide one side and test yourself.</p></button>
     </div>
-    <p class="why"><b>Why it works.</b> Every mode makes you produce the answer before you see it, which builds memory far better than rereading. Daily Recall brings back what you forget soon and spaces out what you know, so quotes you rate <b>Forgot</b> return later in the same round, and secure ones wait up to 16 days. Every mode feeds the weakest quotations to you more often. Progress is saved in this browser only.</p>
+    <p class="why"><b>Why it works.</b> Every mode makes you produce the answer before you see it, which builds memory far better than rereading. Daily Recall brings back what you forget soon and spaces out what you know, so quotes you rate <b>Forgot</b> return later in the same round, and secure ones wait up to 16 days. Every mode feeds the weakest quotations to you more often. Progress saves in this browser, and syncs to your Claude account when you're signed in. In Unpack it and Exam Plan, Claude can mark your written analysis like an examiner.</p>
   </div>`;
 };
 
@@ -365,6 +440,7 @@ function revealRecall(){
     html+=`<div class="row"><span class="score ${p>=.7?"good":p>=.4?"mid":"low"}">${kwHit}/${kws.length} key words · ${tOk}/${right.size} themes${tWrong?` · ${tWrong} extra`:""}</span><span class="mono">dashed chip = theme you missed</span></div>
       <dl class="notes kw"><dt>Method</dt><dd>${mark(x.method)}</dd><dt>Meaning</dt><dd>${mark(x.meaning)}</dd></dl>`;
   }
+  if(type==="unpack")html+=`<div id="ai"></div>`;
   const ctx=CTX.filter(c=>c.links.includes(n));
   if(ctx.length)html+=`<div class="ctx"><span class="eyebrow">Context link</span><br>${ctx.map(c=>`<b>${esc(c.name)}:</b> ${esc(c.text)}`).join("<br>")}</div>`;
   const sug=p>=.85?3:p>=.5?2:1;
@@ -373,6 +449,7 @@ function revealRecall(){
     <button class="grade g2 ${sug===2?"sugg":""}" data-g="2"><b>Shaky</b><small>tomorrow</small></button>
     <button class="grade g3 ${sug===3?"sugg":""}" data-g="3"><b>Got it</b><small>${INTERVAL[Math.min(5,S.cards[n].box+1)]||1} day${(INTERVAL[Math.min(5,S.cards[n].box+1)]||1)>1?"s":""}</small></button></div></div>`;
   const r=$("#reveal"); r.className="answer"; r.innerHTML=html;
+  if(type==="unpack")aiBox("#ai",{x,answer:()=>typed,task:"Explain the method and meaning of this quotation."});
   r.querySelectorAll(".grade").forEach(b=>b.onclick=()=>gradeRecall(+b.dataset.g));
   r.querySelector(".grade.sugg").focus();
 }
@@ -576,8 +653,10 @@ function renderExam(){
       $("#reveal").innerHTML=`<span class="score ${k/kws.length>=.5?"good":"mid"}">${k}/${kws.length} key ideas mentioned</span>
        <dl class="notes"><dt>Method</dt><dd>${esc(f.method)}</dd><dt>Meaning</dt><dd>${esc(f.meaning)}</dd><dt>Themes</dt><dd>${esc(f.themes.join(", "))}</dd></dl>
        ${ctx.length?`<div class="ctx"><span class="eyebrow">Context to add</span><br>${ctx.map(c=>`<b>${esc(c.name)}:</b> ${esc(c.text)}`).join("<br>")}</div>`:`<p class="mono" style="margin:0">No context point is linked to this quotation in the bank.</p>`}
+       <div id="ai2"></div>
        <div class="row"><button class="btn primary" onclick="go('exam')">New question</button><button class="btn" onclick="go('home')">Done</button></div>`;
-      $("#model").hidden=true;};
+      $("#model").hidden=true;
+      aiBox("#ai2",{x:f,answer:()=>$("#para").value,task:"Essay question: "+ES.stem+" "+ES.t+" in Macbeth? The student chose quotations "+ES.sel.map(n=>"#"+n).join(", ")+" and wrote one analytical sentence on this one."});};
   }
 }
 
@@ -596,11 +675,13 @@ VIEWS.bank=()=>{
      ${covered(x.n,"notes")?`<button class="cover" style="margin-top:8px" data-o="${x.n}notes">Say the method, meaning and themes, then tap to check</button>`:`<dl class="notes"><dt>Method</dt><dd>${esc(x.method)}</dd><dt>Meaning</dt><dd>${esc(x.meaning)}</dd><dt>Themes</dt><dd>${esc(x.themes.join(", "))}</dd></dl>`}
    </div></div>`}).join("")}</div>
    <div class="answer"><span class="kind">Context</span><ul class="list">${CTX.map(c=>`<li><b>${esc(c.name)}:</b> ${esc(c.text)} <span class="mono">Use with ${c.links.map(n=>"#"+n).join(", ")}</span></li>`).join("")}</ul></div>
+   <div class="row" data-dl ${CAP.downloads?"":"hidden"}><button class="btn" id="dldeck">Export flashcards (CSV for Anki or Quizlet)</button><button class="btn" id="dlweak">Export my weakest 8</button><span class="mono" id="dlmsg"></span></div>
    <div class="row" id="resetrow"><button class="btn ghost danger" id="reset">Reset my progress</button></div>
    </section></div>`;
   $("#tsel").onchange=e=>{BS.theme=e.target.value;BS.open.clear();const y=window.scrollY;VIEWS.bank();window.scrollTo(0,y)};
   document.querySelectorAll(".seg button").forEach(b=>b.onclick=()=>{BS.cover=b.dataset.c;BS.open.clear();const y=window.scrollY;VIEWS.bank();window.scrollTo(0,y)});
   document.querySelectorAll(".cover").forEach(b=>b.onclick=()=>{BS.open.add(b.dataset.o);const y=window.scrollY;VIEWS.bank();window.scrollTo(0,y)});
+  $("#dldeck").onclick=()=>exportFile("deck");$("#dlweak").onclick=()=>exportFile("weak");
   $("#reset").onclick=()=>{$("#resetrow").innerHTML=`<span>This clears all levels, scores and your streak.</span><button class="btn primary" id="yes">Yes, reset</button><button class="btn" id="no">Cancel</button>`;
     $("#yes").onclick=()=>{S=blank();save();go("home")};$("#no").onclick=()=>VIEWS.bank()};
 };
