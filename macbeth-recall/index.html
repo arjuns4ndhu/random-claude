@@ -173,6 +173,15 @@ textarea{min-height:84px;resize:vertical}
 .lvl{display:flex;gap:4px}.lvl i{width:26px;height:8px;border-radius:2px;background:var(--line)}.lvl i.on{background:var(--accent)}
 .syncchip{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .syncchip.on{color:var(--good)}
+.focus{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:10px;align-items:end;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+@media (max-width:620px){.focus{grid-template-columns:1fr 1fr}.focus .fcount{grid-column:1/-1}}
+.focus select{padding:8px 10px}
+.fcount{font-family:var(--f-mono);font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.fcount b{font-family:var(--f-display);font-weight:400;font-size:26px;color:var(--ink);line-height:1}
+.fcount button{background:none;border:none;padding:0;color:var(--accent);font-family:var(--f-mono);font-size:12px;text-decoration:underline}
+.candle.off{opacity:.25}
+.grp{font-size:26px;margin-top:18px;display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--ink);padding-bottom:4px}
+.grp .mono{font-size:12px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -312,6 +321,35 @@ function studied(){const t=dayStr(); if(S.last===t)return; const y=dayStr(new Da
 function hit(n,ok){const c=S.cards[n]; ok?c.right++:c.wrong++; studied(); save()}
 function isDue(n){const c=S.cards[n];return c.box===0||c.due<=Date.now()}
 
+/* ---------- FOCUS: filter by character, theme, act ---------- */
+const CAST=[["Macbeth",x=>x.who==="Macbeth"],["Lady Macbeth",x=>x.who==="Lady Macbeth"],["Witches & spirits",x=>["Witches","Third Witch","Second Witch","Hecate","Apparition"].includes(x.who)],["Macduff",x=>x.who==="Macduff"],["Banquo, Captain & Malcolm",x=>["Banquo","Captain","Malcolm"].includes(x.who)]];
+let FOCUS={who:"all",theme:"all",act:"all"};
+try{const f=JSON.parse(localStorage.getItem("macbeth-focus")||"null");if(f)FOCUS={...FOCUS,...f}}catch(e){}
+function inFocus(x){
+  if(FOCUS.who!=="all"){const c=CAST.find(c=>c[0]===FOCUS.who);if(c&&!c[1](x))return false}
+  if(FOCUS.theme!=="all"&&!x.themes.includes(FOCUS.theme))return false;
+  if(FOCUS.act!=="all"&&(x.ref==="FINAL"?5:+x.ref[1])!==+FOCUS.act)return false;
+  return true}
+const focusOn=()=>FOCUS.who!=="all"||FOCUS.theme!=="all"||FOCUS.act!=="all";
+function pool(min=1){const p=Q.filter(inFocus).map(x=>x.n);return p.length>=min?p:Q.map(x=>x.n)}
+function focusBar(){
+  const n=Q.filter(inFocus).length, opt=(v,l,cur)=>`<option value="${v}" ${String(cur)===String(v)?"selected":""}>${l}</option>`;
+  const cnt=f=>Q.filter(x=>{const o=FOCUS;FOCUS={...o,...f};const r=inFocus(x);FOCUS=o;return r}).length;
+  return `<div class="focus" role="group" aria-label="Choose which quotations to revise">
+   <div><label class="lbl" for="fwho">Character</label><select id="fwho">${opt("all","Everyone",FOCUS.who)}${CAST.map(c=>opt(c[0],`${c[0]} (${cnt({who:c[0]})})`,FOCUS.who)).join("")}</select></div>
+   <div><label class="lbl" for="ftheme">Theme</label><select id="ftheme">${opt("all","All themes",FOCUS.theme)}${THEMES.map(t=>opt(t,`${t} (${cnt({theme:t})})`,FOCUS.theme)).join("")}</select></div>
+   <div><label class="lbl" for="fact">Act</label><select id="fact">${opt("all","Whole play",FOCUS.act)}${[1,2,3,4,5].map(a=>opt(a,`Act ${["","I","II","III","IV","V"][a]} (${cnt({act:a})})`,FOCUS.act)).join("")}</select></div>
+   <div class="fcount"><b>${n}</b>${n===1?"quote":"quotes"} in focus${focusOn()?`<button id="fclear">Clear filters</button>`:""}</div></div>`}
+function wireFocus(rerender){
+  const set=(k,v)=>{FOCUS[k]=v;try{localStorage.setItem("macbeth-focus",JSON.stringify(FOCUS))}catch(e){}renderHeader();const y=window.scrollY;rerender();window.scrollTo(0,y)};
+  const w=document.getElementById("fwho");if(!w)return;
+  w.onchange=e=>set("who",e.target.value);
+  document.getElementById("ftheme").onchange=e=>set("theme",e.target.value);
+  document.getElementById("fact").onchange=e=>set("act",e.target.value);
+  const c=document.getElementById("fclear");if(c)c.onclick=()=>{FOCUS={who:"all",theme:"all",act:"all"};set("who","all")};
+}
+function focusNote(){if(!focusOn())return"";const n=Q.filter(inFocus).length;return`<span class="mono">Focus: ${[FOCUS.who!=="all"?FOCUS.who:"",FOCUS.theme!=="all"?FOCUS.theme:"",FOCUS.act!=="all"?"Act "+FOCUS.act:""].filter(Boolean).map(esc).join(" · ")} (${n})</span>`}
+
 /* ---------- HELPERS ---------- */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -341,7 +379,7 @@ function stemHit(w,typedSet){const s=w.slice(0,5);for(const t of typedSet){if(t.
 function renderHeader(){
   const secure=Q.filter(x=>S.cards[x.n].box>=4).length, due=Q.filter(x=>isDue(x.n)).length;
   $("#stats").innerHTML=`<div class="stat"><b>${secure}<small style="font-size:16px">/24</small></b><span>Secure</span></div><div class="stat"><b>${due}</b><span>Due now</span></div><div class="stat"><b>${S.streak||0}</b><span>Day streak</span></div>`;
-  $("#candles").innerHTML=Q.map(x=>{const c=S.cards[x.n];return`<div class="candle ${isDue(x.n)?"due":""}" title="#${x.n} · ${esc(plain(x.q))} · level ${c.box}/5"><i style="height:${c.box/5*100}%"></i></div>`}).join("");
+  $("#candles").innerHTML=Q.map(x=>{const c=S.cards[x.n];return`<div class="candle ${isDue(x.n)?"due":""} ${inFocus(x)?"":"off"}" title="#${x.n} · ${esc(plain(x.q))} · level ${c.box}/5"><i style="height:${c.box/5*100}%"></i></div>`}).join("");
   $("#candles").setAttribute("aria-label",`${secure} of 24 quotations secure, ${due} due for review`);
 }
 
@@ -360,8 +398,9 @@ const MODES=[
 ];
 const VIEWS={};
 VIEWS.home=()=>{
-  const due=Q.filter(x=>isDue(x.n)).length;
+  const due=Q.filter(x=>isDue(x.n)&&inFocus(x)).length;
   $("#app").innerHTML=`<div class="wrap" style="gap:16px">
+    ${focusBar()}
     <section class="today">
       <div><div class="eyebrow" style="color:inherit;opacity:.7">Start here · spaced repetition</div>
       <h2>Daily Recall</h2>
@@ -371,17 +410,19 @@ VIEWS.home=()=>{
     <div class="modes">${MODES.map(([id,t,d,s])=>`<button class="mode" onclick="go('${id}')"><span class="mono">${s}</span><h3>${t}</h3><p>${d}</p></button>`).join("")}
       <button class="mode" onclick="go('bank')" style="grid-column:1/-1"><span class="mono">Reference · cover and test</span><h3>Quote Bank</h3><p>All 24 with method, meaning and themes. Hide one side and test yourself.</p></button>
     </div>
+    <p class="why"><b>Filters.</b> Daily Recall, Gap Fill, Lightning Round, Play Order and Exam Plan only use quotations that match your character, theme and act choices. Theme Hunt and Context Links always use the whole play, because spotting what doesn't fit is part of the test.</p>
     <p class="why"><b>Why it works.</b> Every mode makes you produce the answer before you see it, which builds memory far better than rereading. Daily Recall brings back what you forget soon and spaces out what you know, so quotes you rate <b>Forgot</b> return later in the same round, and secure ones wait up to 16 days. Every mode feeds the weakest quotations to you more often. Progress saves in this browser, and syncs to your Claude account when you're signed in. In Unpack it and Exam Plan, Claude can mark your written analysis like an examiner.</p>
   </div>`;
+  wireFocus(VIEWS.home);
 };
 
 /* ---------- DAILY RECALL ---------- */
 let RS=null;
 VIEWS.recall=()=>{
-  let pool=Q.filter(x=>isDue(x.n)).map(x=>x.n);
-  pool.sort((a,b)=>S.cards[a].box-S.cards[b].box||Math.random()-.5);
-  let queue=pool.slice(0,10);
-  if(!queue.length) queue=pickWeighted(Q.map(x=>x.n),8);
+  let due=Q.filter(x=>isDue(x.n)&&inFocus(x)).map(x=>x.n);
+  due.sort((a,b)=>S.cards[a].box-S.cards[b].box||Math.random()-.5);
+  let queue=due.slice(0,10);
+  if(!queue.length) queue=pickWeighted(pool(),8);
   RS={queue,i:0,rep:{},res:{1:[],2:[],3:[]},total:queue.length};
   nextRecall();
 };
@@ -405,7 +446,7 @@ function nextRecall(){
       <div><span class="lbl">Which themes does it fit?</span><div class="chips" id="tchips">${THEMES.map(t=>`<button class="chip" aria-pressed="false" data-t="${t}">${t}</button>`).join("")}</div></div>`;
   }
   $("#app").innerHTML=`<div class="wrap" style="gap:14px">
-    <div class="bar">${backBtn}<span class="mono">Card ${Math.min(RS.i+1,RS.queue.length)} of ${RS.queue.length} · #${n}</span></div>
+    <div class="bar">${backBtn}${focusNote()}<span class="mono">Card ${Math.min(RS.i+1,RS.queue.length)} of ${RS.queue.length} · #${n}</span></div>
     <div class="progress"><i style="width:${RS.i/RS.queue.length*100}%"></i></div>
     <section class="card">${prompt}${input}
       <div class="row end"><span class="mono" style="margin-right:auto">Enter to check</span><button class="btn primary" id="check">Check</button></div>
@@ -473,12 +514,12 @@ function recallDone(){
 
 /* ---------- GAP FILL ---------- */
 let GS=null;
-VIEWS.gap=()=>{GS={list:pickWeighted(Q.map(x=>x.n),8),i:0,score:0,miss:[]};gapCard()};
+VIEWS.gap=()=>{GS={list:pickWeighted(pool(),8),i:0,score:0,miss:[]};gapCard()};
 function gapCard(){
   if(GS.i>=GS.list.length)return endScreen("Gap Fill",GS.score,GS.list.length,GS.miss,"gap");
   const x=byN(GS.list[GS.i]); let bi=0;
   const body=esc(x.q).replace(/\[\[(.+?)\]\]/g,(m,w)=>`<input type="text" id="gap${bi}" data-i="${bi++}" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="missing word" style="width:${Math.max(5,w.length+2)}ch">`);
-  $("#app").innerHTML=`<div class="wrap" style="gap:14px"><div class="bar">${backBtn}<span class="mono">${GS.i+1} of ${GS.list.length} · score ${GS.score}</span></div>
+  $("#app").innerHTML=`<div class="wrap" style="gap:14px"><div class="bar">${backBtn}${focusNote()}<span class="mono">${GS.i+1} of ${GS.list.length} · score ${GS.score}</span></div>
    <div class="progress"><i style="width:${GS.i/GS.list.length*100}%"></i></div>
    <section class="card"><div class="kind">Fill the underlined ${bi>1?"words":"word"}</div>
     <p class="quote gapq">“${body}”</p>
@@ -520,7 +561,7 @@ VIEWS.lightning=()=>{
 function startLightning(){LS={t:60,score:0,miss:[],seen:0,lock:false};lightCard();
   timer=setInterval(()=>{LS.t--;const el=$("#timer");if(el){el.textContent=LS.t;el.classList.toggle("low",LS.t<=10)}if(LS.t<=0){clearInterval(timer);lightDone()}},1000)}
 function lightCard(){
-  const x=byN(pickWeighted(Q.map(q=>q.n),1)[0]), type=Math.random()<.5?"who":"act"; LS.cur={x,type};
+  const x=byN(pickWeighted(pool(),1)[0]), type=Math.random()<.5?"who":"act"; LS.cur={x,type};
   let opts;
   if(type==="who"){opts=shuffle([x.g,...shuffle(GROUPS.filter(g=>g!==x.g)).slice(0,3)]);LS.cur.ans=x.g}
   else{opts=[1,2,3,4,5];LS.cur.ans=actOf(x)}
@@ -599,14 +640,14 @@ function checkHunt(){
 /* ---------- PLAY ORDER ---------- */
 let OS=null;
 VIEWS.order=()=>{
-  const pick=shuffle(Q.map(x=>x.n)).slice(0,5); // distinct numbers = distinct positions
+  const pick=shuffle(pool(3)).slice(0,5); // distinct numbers = distinct positions
   OS={pick,tiles:shuffle(pick),seq:[],done:false,round:(OS?OS.round:0)+1,total:OS?OS.total:0};renderOrder();
 };
 function renderOrder(){
   $("#app").innerHTML=`<div class="wrap" style="gap:14px"><div class="bar">${backBtn}<span class="mono">round ${OS.round} · total ${OS.total}</span></div>
-   <section class="card"><div class="kind">Play Order</div><p style="margin:0">Tap the quotations in the order they appear in the play, earliest first. Tap again to undo.</p>
+   <section class="card"><div class="kind">Play Order</div><p style="margin:0">Tap the quotations in the order they appear in the play, earliest first. Tap again to undo.</p>${focusNote()}
    <div class="tiles" style="grid-template-columns:1fr">${OS.tiles.map(n=>{const pos=OS.seq.indexOf(n);return`<button class="tile" aria-pressed="${pos>=0}" data-n="${n}"><span class="mark">${pos>=0?pos+1:""}</span>“${qHTML(byN(n).q)}”</button>`}).join("")}</div>
-   <div class="row end"><span class="mono" id="ores" style="margin-right:auto"></span><button class="btn primary" id="check" ${OS.seq.length<5?"disabled":""}>Check</button></div></section></div>`;
+   <div class="row end"><span class="mono" id="ores" style="margin-right:auto"></span><button class="btn primary" id="check" ${OS.seq.length<OS.pick.length?"disabled":""}>Check</button></div></section></div>`;
   document.querySelectorAll(".tile").forEach(t=>t.onclick=()=>{if(OS.done)return;const n=+t.dataset.n,p=OS.seq.indexOf(n);p>=0?OS.seq.splice(p):OS.seq.push(n);renderOrder()});
   $("#check").onclick=checkOrder;
 }
@@ -618,13 +659,13 @@ function checkOrder(){
     t.insertAdjacentHTML("beforeend",`<span class="note">${refTxt(byN(n).ref)} · ${esc(byN(n).who)}${good?"":` · you put it ${got+1}`}</span>`);hit(n,good)});
   // show in correct order
   const box=document.querySelector(".tiles"); correct.forEach(n=>box.appendChild(box.querySelector(`[data-n="${n}"]`)));
-  OS.total+=ok; $("#ores").textContent=`${ok}/5 in the right place`; $("#check").textContent="Next round →"; $("#check").disabled=false; $("#check").focus(); renderHeader();
+  OS.total+=ok; $("#ores").textContent=`${ok}/${OS.pick.length} in the right place`; $("#check").textContent="Next round →"; $("#check").disabled=false; $("#check").focus(); renderHeader();
 }
 
 /* ---------- EXAM PLAN ---------- */
 let ES=null;
 VIEWS.exam=()=>{
-  const ok=THEMES.filter(t=>Q.filter(x=>x.themes.includes(t)).length>=3), t=ok[Math.random()*ok.length|0];
+  const ok=THEMES.filter(t=>Q.filter(x=>x.themes.includes(t)).length>=3), t=(FOCUS.theme!=="all"&&ok.includes(FOCUS.theme))?FOCUS.theme:ok[Math.random()*ok.length|0];
   const stems=["How does Shakespeare present","Explore how Shakespeare presents ideas about","How far does Shakespeare use the play to explore"];
   ES={t,stem:stems[Math.random()*3|0],sel:[],step:1}; renderExam();
 };
@@ -661,25 +702,33 @@ function renderExam(){
 }
 
 /* ---------- QUOTE BANK ---------- */
-let BS={cover:"none",theme:"all",open:new Set()};
-VIEWS.bank=()=>{
-  const list=Q.filter(x=>BS.theme==="all"||x.themes.includes(BS.theme));
-  const covered=(n,part)=>BS.cover===part&&!BS.open.has(n+part);
-  $("#app").innerHTML=`<div class="wrap" style="gap:14px"><div class="bar">${backBtn}</div>
-   <section class="card"><div class="kind">Quote Bank</div>
-   <div class="filters"><div><label class="lbl" for="tsel">Theme</label><select id="tsel"><option value="all">All 24 quotations</option>${THEMES.map(t=>`<option ${BS.theme===t?"selected":""} value="${t}">${t} (${Q.filter(x=>x.themes.includes(t)).length})</option>`).join("")}</select></div>
-    <div><span class="lbl">Cover</span><div class="seg">${[["none","Nothing"],["quote","Quotes"],["notes","Notes"]].map(([v,l])=>`<button aria-pressed="${BS.cover===v}" data-c="${v}">${l}</button>`).join("")}</div></div></div>
-   <div>${list.map(x=>{const c=S.cards[x.n];return`<div class="entry"><div><div class="num">${x.n}</div><div class="pips" title="level ${c.box}/5">${[1,2,3,4,5].map(i=>`<i class="${c.box>=i?"on":""}"></i>`).join("")}</div></div><div style="min-width:0">
+function groups(list){
+  if(BS.group==="act")return [1,2,3,4,5].map(a=>["Act "+R[a],list.filter(x=>actOf(x)===a)]).filter(g=>g[1].length);
+  if(BS.group==="who")return CAST.map(c=>[c[0],list.filter(c[1])]).filter(g=>g[1].length);
+  if(BS.group==="theme")return THEMES.map(t=>[t[0].toUpperCase()+t.slice(1),list.filter(x=>x.themes.includes(t))]).filter(g=>g[1].length);
+  return list.length?[["",list]]:[]}
+const covered=(n,part)=>BS.cover===part&&!BS.open.has(n+part);
+function entry(x){const c=S.cards[x.n];return`<div class="entry"><div><div class="num">${x.n}</div><div class="pips" title="level ${c.box}/5">${[1,2,3,4,5].map(i=>`<i class="${c.box>=i?"on":""}"></i>`).join("")}</div></div><div style="min-width:0">
      ${covered(x.n,"quote")?`<button class="cover" data-o="${x.n}quote">Say the quotation, then tap to check · ${esc(x.who)}, ${refTxt(x.ref)}</button>`:`<p class="quote sm" style="margin:0">“${qHTML(x.q)}”</p>`}
      <div style="margin-top:4px">${whoLine(x)} <span class="mono">· ${c.right}✓ ${c.wrong}✗</span></div>
      ${covered(x.n,"notes")?`<button class="cover" style="margin-top:8px" data-o="${x.n}notes">Say the method, meaning and themes, then tap to check</button>`:`<dl class="notes"><dt>Method</dt><dd>${esc(x.method)}</dd><dt>Meaning</dt><dd>${esc(x.meaning)}</dd><dt>Themes</dt><dd>${esc(x.themes.join(", "))}</dd></dl>`}
-   </div></div>`}).join("")}</div>
+   </div></div>`}
+let BS={cover:"none",group:"act",open:new Set()};
+VIEWS.bank=()=>{
+  const list=Q.filter(inFocus);
+  $("#app").innerHTML=`<div class="wrap" style="gap:14px"><div class="bar">${backBtn}</div>
+   <section class="card"><div class="kind">Quote Bank</div>
+   ${focusBar()}
+   <div class="row" style="gap:18px"><div><span class="lbl">Group by</span><div class="seg" id="gseg">${[["act","Act"],["who","Character"],["theme","Theme"],["none","Number"]].map(([v,l])=>`<button aria-pressed="${BS.group===v}" data-g="${v}">${l}</button>`).join("")}</div></div>
+    <div><span class="lbl">Cover</span><div class="seg">${[["none","Nothing"],["quote","Quotes"],["notes","Notes"]].map(([v,l])=>`<button aria-pressed="${BS.cover===v}" data-c="${v}">${l}</button>`).join("")}</div></div></div>
+   <div>${groups(list).map(([g,items])=>`${g?`<h3 class="grp">${esc(g)} <span class="mono">${items.length} quote${items.length>1?"s":""}</span></h3>`:""}${items.map(entry).join("")}`).join("")||`<p class="muted">No quotations match these filters. Try clearing one.</p>`}</div>
    <div class="answer"><span class="kind">Context</span><ul class="list">${CTX.map(c=>`<li><b>${esc(c.name)}:</b> ${esc(c.text)} <span class="mono">Use with ${c.links.map(n=>"#"+n).join(", ")}</span></li>`).join("")}</ul></div>
    <div class="row" data-dl ${CAP.downloads?"":"hidden"}><button class="btn" id="dldeck">Export flashcards (CSV for Anki or Quizlet)</button><button class="btn" id="dlweak">Export my weakest 8</button><span class="mono" id="dlmsg"></span></div>
    <div class="row" id="resetrow"><button class="btn ghost danger" id="reset">Reset my progress</button></div>
    </section></div>`;
-  $("#tsel").onchange=e=>{BS.theme=e.target.value;BS.open.clear();const y=window.scrollY;VIEWS.bank();window.scrollTo(0,y)};
-  document.querySelectorAll(".seg button").forEach(b=>b.onclick=()=>{BS.cover=b.dataset.c;BS.open.clear();const y=window.scrollY;VIEWS.bank();window.scrollTo(0,y)});
+  wireFocus(VIEWS.bank);
+  document.querySelectorAll("#gseg button").forEach(b=>b.onclick=()=>{BS.group=b.dataset.g;const y=window.scrollY;VIEWS.bank();window.scrollTo(0,y)});
+  document.querySelectorAll(".seg:not(#gseg) button").forEach(b=>b.onclick=()=>{BS.cover=b.dataset.c;BS.open.clear();const y=window.scrollY;VIEWS.bank();window.scrollTo(0,y)});
   document.querySelectorAll(".cover").forEach(b=>b.onclick=()=>{BS.open.add(b.dataset.o);const y=window.scrollY;VIEWS.bank();window.scrollTo(0,y)});
   $("#dldeck").onclick=()=>exportFile("deck");$("#dlweak").onclick=()=>exportFile("weak");
   $("#reset").onclick=()=>{$("#resetrow").innerHTML=`<span>This clears all levels, scores and your streak.</span><button class="btn primary" id="yes">Yes, reset</button><button class="btn" id="no">Cancel</button>`;
