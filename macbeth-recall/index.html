@@ -515,16 +515,30 @@ function recallDone(){
 /* ---------- GAP FILL ---------- */
 let GS=null;
 VIEWS.gap=()=>{GS={list:pickWeighted(pool(),8),i:0,score:0,miss:[]};gapCard()};
+const GAP_SKIP=new Set("a an the is of in to and as at i o my me but be so us this that it his her he she shall should does which will thy thee th".split(" "));
+function makeGaps(x){
+  const parts=plain(x.q).split(/(\s+|—|…|\/)/), keys=new Set([...x.q.matchAll(/\[\[(.+?)\]\]/g)].flatMap(m=>m[1].split(/\s+/)).map(norm));
+  const RX=/^([^A-Za-z]*)([A-Za-z](?:[A-Za-z'’-]*[A-Za-z])?)([^A-Za-z]*)$/;
+  let idx=[],all=[];parts.forEach((p,i)=>{const m=p.match(RX);if(!m)return;all.push(i);const w=norm(m[2]);if(w.length>=3&&!GAP_SKIP.has(w))idx.push(i)});
+  if(!idx.length)idx=all;
+  const max=all.length<=4?1:all.length<=9?2:3, k=Math.min(idx.length,1+(Math.random()*max|0));
+  let pick=shuffle(idx).slice(0,k);
+  const keyIdx=idx.filter(i=>keys.has(norm(parts[i].match(RX)[2])));
+  if(keyIdx.length&&Math.random()<.5&&!pick.some(i=>keyIdx.includes(i)))pick[0]=keyIdx[Math.random()*keyIdx.length|0];
+  pick=[...new Set(pick)].sort((a,b)=>a-b);
+  return {parts,pick,RX,ans:pick.map(i=>parts[i].match(RX)[2])};
+}
 function gapCard(){
   if(GS.i>=GS.list.length)return endScreen("Gap Fill",GS.score,GS.list.length,GS.miss,"gap");
-  const x=byN(GS.list[GS.i]); let bi=0;
-  const body=esc(x.q).replace(/\[\[(.+?)\]\]/g,(m,w)=>`<input type="text" id="gap${bi}" data-i="${bi++}" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="missing word" style="width:${Math.max(5,w.length+2)}ch">`);
+  const x=byN(GS.list[GS.i]), G=makeGaps(x); GS.g=G; let bi=0;
+  const body=G.parts.map((p,i)=>{if(!G.pick.includes(i))return esc(p);const m=p.match(G.RX);const w=m[2];
+    return `${esc(m[1])}<input type="text" id="gap${bi}" data-i="${bi++}" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="missing word ${bi}" style="width:${Math.max(4,w.length+2)}ch">${esc(m[3])}`}).join("");
   $("#app").innerHTML=`<div class="wrap" style="gap:14px"><div class="bar">${backBtn}${focusNote()}<span class="mono">${GS.i+1} of ${GS.list.length} · score ${GS.score}</span></div>
    <div class="progress"><i style="width:${GS.i/GS.list.length*100}%"></i></div>
-   <section class="card"><div class="kind">Fill the underlined ${bi>1?"words":"word"}</div>
+   <section class="card"><div class="kind">Fill the ${bi>1?bi+" missing words":"missing word"}</div>
     <p class="quote gapq">“${body}”</p>
     <div id="hint"><button class="btn ghost" id="hintb">Show hint: speaker and meaning</button></div>
-    <div class="row end"><button class="btn primary" id="check">Check</button></div><div id="reveal"></div></section></div>`;
+    <div class="row end"><span class="mono" style="margin-right:auto">Different words go missing every time</span><button class="btn primary" id="check">Check</button></div><div id="reveal"></div></section></div>`;
   const ins=[...document.querySelectorAll(".gapq input")]; ins[0].focus();
   ins.forEach((el,i)=>el.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();if(GS.done)return gapNext();i<ins.length-1&&!ins[i+1].value?ins[i+1].focus():gapCheck()}}));
   $("#hintb").onclick=()=>{$("#hint").innerHTML=`${whoLine(x)}<p style="margin:4px 0 0">${esc(x.meaning)}</p>`;GS.hint=true};
@@ -532,10 +546,10 @@ function gapCard(){
 }
 function gapCheck(){
   if(GS.done)return gapNext(); GS.done=true;
-  const x=byN(GS.list[GS.i]), ans=[...x.q.matchAll(/\[\[(.+?)\]\]/g)].map(m=>m[1]);
+  const x=byN(GS.list[GS.i]), ans=GS.g.ans;
   let all=true, spell=false, fixes=[];
   document.querySelectorAll(".gapq input").forEach((el,i)=>{
-    const want=ans[i], got=norm(el.value), accept=[want,...((x.alt||{})[want]||[])].map(norm);
+    const want=ans[i], got=norm(el.value), accept=[want,...((x.alt||{})[want.replace(/’/g,"'")]||[])].map(norm);
     let ok=accept.includes(got); if(!ok&&got&&accept.some(a=>a.length>=5&&lev(a,got)<=1)){ok=true;spell=true}
     el.readOnly=true; el.classList.add(ok?"ok":"bad"); if(!ok){all=false;fixes.push(want)}
   });
