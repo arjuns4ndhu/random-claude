@@ -547,9 +547,9 @@ function gapCard(){
    <section class="card"><div class="kind">Fill the ${bi>1?bi+" missing words":"missing word"}</div>
     <p class="quote gapq">“${body}”</p>
     <div id="hint"><button class="btn ghost" id="hintb">Show hint: speaker and meaning</button></div>
-    <div class="row end"><span class="mono" style="margin-right:auto">Different words go missing every time</span><button class="btn primary" id="check">Check</button></div><div id="reveal"></div></section></div>`;
+    <div class="row end"><span class="mono" style="margin-right:auto">Enter jumps to the next empty gap, then checks</span><button class="btn primary" id="check">Check</button></div><div id="reveal"></div></section></div>`;
   const ins=[...document.querySelectorAll(".gapq input")]; ins[0].focus();
-  ins.forEach((el,i)=>el.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();if(GS.done)return gapNext();i<ins.length-1&&!ins[i+1].value?ins[i+1].focus():gapCheck()}}));
+  ins.forEach((el,i)=>el.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();if(GS.done)return gapNext();const order=[...ins.slice(i+1),...ins.slice(0,i)],nxt=order.find(o=>!o.value.trim());nxt?nxt.focus():gapCheck()}}));
   $("#hintb").onclick=()=>{$("#hint").innerHTML=`${whoLine(x)}<p style="margin:4px 0 0">${esc(x.meaning)}</p>`;GS.hint=true};
   $("#check").onclick=gapCheck; GS.done=false; GS.hint=false;
 }
