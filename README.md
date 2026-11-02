@@ -2,7 +2,9 @@
 
 A revision game for the 24-quotation GCSE *Macbeth* quote bank. Every mode makes you recall the answer before you see it.
 
-**Play it:** https://arjuns4ndhu.github.io/random-claude/
+**Play it now:** https://raw.githack.com/arjuns4ndhu/random-claude/claude/wonderful-rubin-fonxkh/play/index.html
+
+(Once GitHub Pages is switched on in Settings → Pages → Source: GitHub Actions, it is also at https://arjuns4ndhu.github.io/random-claude/)
 
 ## Modes
 
@@ -16,4 +18,4 @@ A revision game for the 24-quotation GCSE *Macbeth* quote bank. Every mode makes
 
 Progress is saved in your browser. When the game is opened as a Claude artifact, it can also sync progress to your Claude account and give examiner-style feedback on written answers; on the public site those extras are hidden.
 
-The game is a single file: [`macbeth-recall/index.html`](macbeth-recall/index.html). The GitHub Pages workflow wraps it in a full HTML document and publishes it on every push.
+`play/index.html` is the same game wrapped as a full web page. The source is a single file: [`macbeth-recall/index.html`](macbeth-recall/index.html). The GitHub Pages workflow wraps it in a full HTML document and publishes it on every push.
