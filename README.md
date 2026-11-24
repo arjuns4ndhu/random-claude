@@ -19,3 +19,9 @@ A revision game for the 24-quotation GCSE *Macbeth* quote bank. Every mode makes
 Progress is saved in your browser. When the game is opened as a Claude artifact, it can also sync progress to your Claude account and give examiner-style feedback on written answers; on the public site those extras are hidden.
 
 `play/index.html` is the same game wrapped as a full web page. The source is a single file: [`macbeth-recall/index.html`](macbeth-recall/index.html). The GitHub Pages workflow wraps it in a full HTML document and publishes it on every push.
+
+## Instagram agent skills
+
+This repo also carries the [instagram-agent-skill](https://github.com/postzen-dev/instagram-agent-skill) pack (MIT, by PostZen) as project-local Claude Code skills in `.claude/skills/ig-*`. The PostZen MCP server is registered in `.mcp.json`.
+
+To finish setup on your machine: open the repo in Claude Code, run `/mcp`, pick `postzen`, choose Authenticate, sign in and grant Read & Write. Then copy `.claude/instagram-agent/voice.md` to `~/.instagram-agent/voice.md` and fill it in. Skills: `/ig-reel`, `/ig-caption`, `/ig-carousel`, `/ig-story`, `/ig-repurpose`, `/ig-viral`, `/ig-profile`, `/ig-plan`, `/ig-audit`, `/ig-comment`, `/ig-reply`, `/ig-dm`, `/ig-human`, `/ig-publish`.
